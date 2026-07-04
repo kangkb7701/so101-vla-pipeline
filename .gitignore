@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 모델/체크포인트/데이터 — GitHub 대신 HF Hub에 호스팅
+checkpoints/
+*.ckpt
+*.safetensors
+*.pt
+*.pth
+data/
+datasets/
+*.parquet
+*.mp4
+*.tfrecord*
+
+# 실행 산출물
+outputs/
+logs/
+wandb/
+debug_frames/
+captured_images/
+
+# 로컬 캘리브/로봇 데이터
+my_robot_data/
+
+# 에디터
+.vscode/
+.idea/
+.DS_Store

@@ -1,0 +1,3 @@
+[submodule "external/VP-VLA"]
+	path = external/VP-VLA
+	url = https://github.com/JIA-Lab-research/VP-VLA.git

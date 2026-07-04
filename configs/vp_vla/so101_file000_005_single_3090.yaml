@@ -1,0 +1,75 @@
+run_id: so101_file000_005_ee7_vp_qwen_oft_fast3090
+run_root_dir: outputs/train/vp_vla
+seed: 42
+
+framework:
+  # Matches the local official VP-VLA OXE checkpoint.
+  name: QwenOFT
+  qwenvl:
+    base_vlm: /home/aivlab/.cache/huggingface/hub/models--Qwen--Qwen3-VL-4B-Instruct/snapshots/ebb281ec70b05090aa6165b016eac8ec08e71b17
+  action_model:
+    action_model_type: DiT-B
+    action_hidden_dim: 2560
+    action_dim: 7
+    future_action_window_size: 15
+    past_action_window_size: 0
+
+datasets:
+  vla_data:
+    data_root_dir: /home/aivlab/kkb_capstone/data/lerobot/so101_pick_place_fruit_vp_vla
+    dataset_name: file000_005_ee7
+    robot_type: SO101_EE
+    lerobot_version: v3.0
+    visual_prompt_dir: /home/aivlab/kkb_capstone/data/vp_vla_visual_prompts
+    target_object_prompt_type: crosshair
+    target_location_prompt_type: box
+    # Official checkpoint uses primary raw + primary overlay. Fixed side remains raw.
+    feed_both_images: true
+    # Grounding uses overlay top, matching the official VP prediction input.
+    include_vp_targets: true
+    grounding_image_index: 1
+    include_state: false
+    image_size: [224, 224]
+    video_backend: pyav
+    delete_pause_frame: false
+    per_device_batch_size: 2
+    num_workers: 4
+
+trainer:
+  pretrained_checkpoint: /home/aivlab/kkb_capstone/checkpoints/vp_vla_oxe_official/checkpoints/steps_70000_pytorch_model.pt
+  max_train_steps: 8000
+  num_warmup_steps: 400
+  save_interval: 1000
+  logging_frequency: 10
+  # Six groups: three basket tasks x easy/hard => 150 train / 30 val episodes.
+  val_episodes_per_group: 5
+  val_seed: 42
+  val_interval: 500
+  val_batches: 32
+  learning_rate:
+    base: 1.0e-5
+    action_model: 1.0e-4
+    vision_lora: 1.0e-5
+  lr_scheduler_type: cosine_with_min_lr
+  scheduler_specific_kwargs:
+    min_lr: 1.0e-6
+  # The trainer freezes Qwen-VL before injecting trainable visual adapters.
+  freeze_modules: ""
+  vision_lora:
+    enabled: true
+    target_pattern: 'visual\.blocks\..*\.(qkv|proj)$'
+    rank: 16
+    alpha: 32
+    dropout: 0.05
+  loss_scale:
+    vla: 1.0
+    visual_prompt: 0.05
+  grounding_frequency: 4
+  gradient_clipping: 1.0
+  gradient_accumulation_steps: 2
+  enable_gradient_checkpointing: false
+  enable_mixed_precision_training: true
+  optimizer:
+    betas: [0.9, 0.95]
+    eps: 1.0e-8
+    weight_decay: 1.0e-8

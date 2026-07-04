@@ -1,0 +1,26 @@
+# 런타임 공통
+numpy
+scipy
+opencv-python
+grpcio
+grpcio-tools
+protobuf
+pyzmq
+fastapi
+uvicorn
+msgpack
+pillow
+
+# LeRobot (ACT 백엔드 + 데이터셋 로더 / 하드웨어 드라이버)
+#   소스 설치를 쓸 경우: 클론 후 `export LEROBOT_SRC=/path/to/lerobot/src`
+lerobot
+
+# Octo 백엔드 (rail-berkeley/octo) — pip 패키지 아님, 별도 클론/설치 필요:
+#   git clone https://github.com/octo-models/octo && pip install -e octo
+#   jax / flax / tensorflow 등 octo 의존성 포함
+
+# (옵션) VP 관련 에이전트
+#   - SAM3 서버: models/sam 참조
+#   - Qwen2.5-VL 이벤트 트리거: transformers, torch
+transformers
+torch

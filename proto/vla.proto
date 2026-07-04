@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package vla;
+
+service VLAService {
+  // 단일/다중 관찰로부터 액션 예측
+  rpc Predict (PredictRequest) returns (PredictResponse);
+  // 에피소드 시작 시 서버 내부 상태(prev_images, prev_state) 초기화
+  rpc Reset   (ResetRequest)   returns (ResetResponse);
+}
+
+message Image {
+  bytes data = 1;          // Raw uint8 RGB pixel bytes (H * W * 3). 무손실 + 인코딩 제로.
+  string camera_name = 2;  // "top", "front" (LeRobot 수집 시 명명 그대로)
+  int32 height = 3;        // 프레임 height (raw 디코딩용)
+  int32 width = 4;         // 프레임 width
+}
+
+message PredictRequest {
+  repeated Image images = 1;  // 다중 카메라 지원
+  string instruction = 2;     // 자연어 명령
+  repeated float state = 3;
+}
+
+message PredictResponse {
+  repeated float actions = 1; // 7차원 액션 (또는 Chunking된 액션)
+  int32 action_dim = 2;       // 7
+  int32 chunk_size = 3;      // Octo의 경우 보통 1 이상
+}
+
+message ResetRequest {}
+
+message ResetResponse {
+  string status = 1;
+}

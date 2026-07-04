@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "so101-vla-pipeline"
+version = "0.1.0"
+description = "SO-101 real-robot VLA pipeline with pluggable policy backends (Octo, ACT, VP-VLA)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "kangkb7701" }]
+dependencies = [
+    "numpy",
+    "scipy",
+    "opencv-python",
+    "grpcio",
+    "protobuf",
+    "pyzmq",
+    "fastapi",
+    "uvicorn",
+    "msgpack",
+    "pillow",
+]
+
+[project.optional-dependencies]
+# Octo 백엔드는 octo(rail-berkeley)를 별도 설치해야 함 (pip 패키지 아님) — README 참고
+act = ["lerobot", "torch"]
+vp = ["transformers", "torch"]
+
+[tool.setuptools]
+# 평면 모듈 레이아웃 (application/agents/controllers/envs/proto + top-level 진입점)
+py-modules = [
+    "octo_server", "hardware_server", "gripper_telemetry",
+    "app_video_process", "vp_runtime_overlay",
+    "main_real2", "main_act", "main_act_goal_onehot",
+]
+packages = ["proto", "agents", "application", "controllers", "envs"]
