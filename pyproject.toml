@@ -28,11 +28,15 @@ dependencies = [
 act = ["lerobot", "torch"]
 vp = ["transformers", "torch"]
 
-[tool.setuptools]
-# 평면 모듈 레이아웃 (application/agents/controllers/envs/proto + top-level 진입점)
-py-modules = [
-    "octo_server", "hardware_server", "gripper_telemetry",
-    "app_video_process", "vp_runtime_overlay",
-    "main_real2", "main_act", "main_act_goal_onehot",
-]
-packages = ["proto", "agents", "application", "controllers", "envs"]
+[project.scripts]
+# 설치 후 CLI 별칭. (모듈 실행도 가능: python -m so101_pipeline.runtime.main_real2)
+octo-server = "so101_pipeline.servers.octo_server:serve"
+hardware-server = "so101_pipeline.servers.hardware_server:main"
+so101-octo = "so101_pipeline.runtime.main_real2:main"
+so101-act = "so101_pipeline.runtime.main_act:main"
+
+[tool.setuptools.packages.find]
+include = ["so101_pipeline*"]
+
+[tool.setuptools.package-data]
+so101_pipeline = ["assets/*.urdf", "proto/*.proto"]

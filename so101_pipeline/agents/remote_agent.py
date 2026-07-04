@@ -2,8 +2,7 @@ import grpc
 import numpy as np
 from PIL import Image
 from .base_agent import BaseAgent
-import proto.vla_pb2 as vla_pb2
-import proto.vla_pb2_grpc as vla_pb2_grpc
+from so101_pipeline.proto import vla_pb2, vla_pb2_grpc
 
 class RemoteAgent(BaseAgent):
     def __init__(self, target_ip="localhost", target_port=50051):

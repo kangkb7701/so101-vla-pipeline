@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import vla_pb2 as vla__pb2
+from so101_pipeline.proto import vla_pb2 as vla__pb2
 
 
 class VLAServiceStub(object):

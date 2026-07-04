@@ -11,13 +11,8 @@ from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from PIL import Image
 
-from application.command_bridge import CommandBridgeConfig, UserCommandBridge
-from application.camera_source import open_dual_camera
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-proto_dir = os.path.join(current_dir, "proto")
-if proto_dir not in sys.path:
-    sys.path.append(proto_dir)
+from so101_pipeline.interfaces.command_bridge import CommandBridgeConfig, UserCommandBridge
+from so101_pipeline.perception.camera_source import open_dual_camera
 
 
 # ===================================================================
@@ -63,7 +58,9 @@ CAM_WRIST_INDEX = 2
 JETSON_TOP_STREAM_URL = "http://127.0.0.1:8080/top"
 JETSON_WRIST_STREAM_URL = "http://127.0.0.1:8080/wrist"
 
-DEFAULT_URDF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "so101_new_calib.urdf")
+DEFAULT_URDF = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "so101_new_calib.urdf"
+)
 URDF_PATH = os.getenv("ROBOT_URDF", DEFAULT_URDF)
 
 CONTROL_HZ = 10.0
@@ -696,11 +693,11 @@ def resolve_task_spec():
 
 
 def main():
-    from controllers.ik_ctrl import IKController
-    from envs.real_env_client import RealRobotEnvClient
+    from so101_pipeline.controllers.ik_ctrl import IKController
+    from so101_pipeline.envs.real_env_client import RealRobotEnvClient
 
     if POLICY_BACKEND == "vp_vla":
-        from agents.vp_vla_remote_agent import VPVLARemoteAgent
+        from so101_pipeline.agents.vp_vla_remote_agent import VPVLARemoteAgent
         agent = VPVLARemoteAgent(
             target_ip=VP_VLA_SERVER_HOST,
             target_port=VP_VLA_SERVER_PORT,
@@ -708,7 +705,7 @@ def main():
             unnorm_key=VP_VLA_UNNORM_KEY,
         )
     else:
-        from agents.remote_agent import RemoteAgent
+        from so101_pipeline.agents.remote_agent import RemoteAgent
         agent = RemoteAgent(target_ip=OCTO_SERVER_HOST, target_port=OCTO_SERVER_PORT)
     print(f"Policy backend: {POLICY_BACKEND}")
 
@@ -789,7 +786,7 @@ def main():
     vp_overlay = None
     if USE_VP_VISUAL_PROMPT:
         try:
-            from vp_runtime_overlay import VisualPromptOverlayRuntime
+            from so101_pipeline.perception.vp_runtime_overlay import VisualPromptOverlayRuntime
             vp_overlay = VisualPromptOverlayRuntime(
                 target_object=target_object,
                 target_location=target_location,
@@ -827,7 +824,7 @@ def main():
     vp_event_thread = None
     if USE_VP_EVENT_TRIGGER:
         try:
-            from agents.qwen_vp_event_trigger import QwenVPEventTrigger
+            from so101_pipeline.agents.qwen_vp_event_trigger import QwenVPEventTrigger
             vp_event_trigger = QwenVPEventTrigger(
                 task_description=task_description,
                 target_object=target_object,

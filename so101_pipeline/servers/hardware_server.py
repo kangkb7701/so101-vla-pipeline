@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import time
 
-from gripper_telemetry import read_gripper_telemetry
+from so101_pipeline.envs.gripper_telemetry import read_gripper_telemetry
 from lerobot.robots.so_follower.config_so_follower import SOFollowerRobotConfig
 from lerobot.robots.so_follower.so_follower import SOFollower
 

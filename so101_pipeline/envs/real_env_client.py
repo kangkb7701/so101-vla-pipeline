@@ -17,7 +17,7 @@ class RealRobotEnvClient:
         if urdf_path is None:
             urdf_path = os.getenv(
                 "ROBOT_URDF",
-                os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "so101_new_calib.urdf"),
+                os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "so101_new_calib.urdf"),
             )
 
         # [CPU BACKEND] IK용 shadow_robot은 CPU에서 돌린다.

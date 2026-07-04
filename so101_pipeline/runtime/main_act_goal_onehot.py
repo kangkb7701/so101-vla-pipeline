@@ -8,7 +8,7 @@ import sys
 
 import numpy as np
 
-import main_act
+from so101_pipeline.runtime import main_act
 
 
 GOAL_FEATURE = "observation.environment_state"

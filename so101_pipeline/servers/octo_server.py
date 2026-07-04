@@ -21,13 +21,7 @@ import jax.tree_util as jtu
 from concurrent import futures
 from octo.model.octo_model import OctoModel
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-proto_path = os.path.join(current_dir, "proto")
-if proto_path not in sys.path:
-    sys.path.append(proto_path)
-
-import vla_pb2 as vla_pb2
-import vla_pb2_grpc as vla_pb2_grpc
+from so101_pipeline.proto import vla_pb2, vla_pb2_grpc
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -76,10 +70,8 @@ class OctoService(vla_pb2_grpc.VLAServiceServicer):
         # ----------------------------------------------------------------
         self.frame_save_count = 0
         self.MAX_FRAMES_TO_SAVE = 5
-        self.frame_save_dir = os.getenv(
-            "DEBUG_FRAME_DIR",
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug_frames"),
-        )
+        _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.frame_save_dir = os.getenv("DEBUG_FRAME_DIR", os.path.join(_repo_root, "debug_frames"))
         os.makedirs(self.frame_save_dir, exist_ok=True)
         self.episode_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -312,9 +304,10 @@ def serve():
     # Raw top+side SO101 fine-tuned Octo selected from the 8K validation comparison.
     # main_real2.py expects this model's gripper output as binary open intent.
     # 체크포인트는 repo에 포함되지 않음 — OCTO_CHECKPOINT 환경변수 또는 checkpoints/ 아래 배치
+    _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     base_ckpt_path = os.getenv(
         "OCTO_CHECKPOINT",
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints", "octo_fruit_raw_vision_frozen"),
+        os.path.join(_repo_root, "checkpoints", "octo_fruit_raw_vision_frozen"),
     )
     target_step = int(os.getenv("OCTO_CHECKPOINT_STEP", "6999"))
 

@@ -24,23 +24,15 @@ import cv2
 import numpy as np
 import torch
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = Path(__file__).resolve().parent
-for path_entry in ("", str(PROJECT_ROOT)):
-    while path_entry in sys.path:
-        sys.path.remove(path_entry)
-
 # LeRobot을 소스에서 쓸 경우 LEROBOT_SRC 환경변수로 경로 지정 (미설정 시 설치된 pip 패키지 사용)
 _lerobot_src = os.environ.get("LEROBOT_SRC")
 if _lerobot_src:
     LEROBOT_SRC = Path(_lerobot_src)
     if LEROBOT_SRC.exists() and str(LEROBOT_SRC) not in sys.path:
         sys.path.insert(0, str(LEROBOT_SRC))
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
 
-from application.command_bridge import CommandBridgeConfig, UserCommandBridge  # noqa: E402
-from app_video_process import SharedVideoPublisher  # noqa: E402
+from so101_pipeline.interfaces.command_bridge import CommandBridgeConfig, UserCommandBridge  # noqa: E402
+from so101_pipeline.interfaces.app_video_process import SharedVideoPublisher  # noqa: E402
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig  # noqa: E402
 from lerobot.policies.utils import prepare_observation_for_inference  # noqa: E402
 from lerobot.configs import PreTrainedConfig  # noqa: E402
