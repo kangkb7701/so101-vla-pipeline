@@ -1,7 +1,11 @@
 # SO-101 VLA Pipeline
 
 
-https://github.com/user-attachments/assets/eb5f42ec-5a44-4b58-88ac-3a165cd851a1
+
+
+https://github.com/user-attachments/assets/d3d763ad-15c7-4a79-8a15-1f52a993dc6c
+
+
 
 
 SO-101(SO-ARM101) 실물 로봇 VLA 추론 파이프라인. 하드웨어·카메라·IK 스택을 공유하고 policy 백엔드(Octo / ACT / VP-VLA)를 교체해서 씀.
