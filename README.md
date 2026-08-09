@@ -1,5 +1,8 @@
 # SO-101 VLA Pipeline
 
+<video src="https://github.com/kangkb7701/so101-vla-pipeline/releases/download/media-assets/capstone_act_video_2x.mp4" controls muted width="720">
+</video>
+
 SO-101(SO-ARM101) 실물 로봇 VLA 추론 파이프라인. 하드웨어·카메라·IK 스택을 공유하고 policy 백엔드(Octo / ACT / VP-VLA)를 교체해서 씀.
 
 - 로봇: `so_follower`, 6-DoF
