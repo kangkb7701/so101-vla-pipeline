@@ -31,3 +31,7 @@ my_robot_data/
 .vscode/
 .idea/
 .DS_Store
+
+# 노트북 로컬 설정 (카메라 인덱스는 재연결마다 바뀜)
+edge_cameras.json
+edge_camera_preview_*.png

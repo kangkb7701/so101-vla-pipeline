@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "364192438806",
+    "firebase_url": "https://vla-capstone-default-rtdb.firebaseio.com",
+    "project_id": "vla-capstone",
+    "storage_bucket": "vla-capstone.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:364192438806:android:b5a215c58106dbbfb4f337",
+        "android_client_info": {
+          "package_name": "com.example.application"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6ophfxm2xpB87ugsU1uvCGQ0hcgqeJO8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
