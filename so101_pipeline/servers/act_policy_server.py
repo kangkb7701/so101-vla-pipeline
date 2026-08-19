@@ -102,10 +102,14 @@ class ActPolicy:
         policy_cfg.pretrained_path = Path(args.policy_path)
         policy_cfg.device = args.device
         if policy_cfg.temporal_ensemble_coeff is not None:
-            raise ValueError(
-                "temporal_ensemble_coeff is set on this checkpoint; chunk-mode serving "
-                "requires it to be None (per-tick inference would be needed otherwise)."
+            # Chunk-mode serving replays whole chunks open-loop on the edge, so
+            # per-tick temporal ensembling is impossible by construction. This was
+            # decided in the split-deployment design; disable it at load time.
+            print(
+                f"WARNING: disabling temporal_ensemble_coeff={policy_cfg.temporal_ensemble_coeff} "
+                "from the checkpoint (incompatible with chunk-mode serving; chunks replay open-loop)."
             )
+            policy_cfg.temporal_ensemble_coeff = None
         self.policy = make_policy(policy_cfg, ds_meta=self.dataset.meta)
         self.policy.eval()
         self.policy.reset()
