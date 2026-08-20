@@ -214,6 +214,8 @@ class EdgeAgent:
         self._infer_ms_log = []
         self._episode_id = 0
         self._app_jpeg = None
+        self._configured = False
+        self._last_submit_t = 0.0
         self.client = PolicyClient(args.server_url, self._handle_chunk, lambda msg: print(f"[link] {msg}"))
 
     # ---- hardware ----
@@ -315,6 +317,8 @@ class EdgeAgent:
     # ---- observation upload ----
 
     def maybe_submit_observation(self, task: str, joints: np.ndarray, frames: dict) -> None:
+        if time.monotonic() - self._last_submit_t < self.args.min_infer_period_s:
+            return
         encode = [int(cv2.IMWRITE_JPEG_QUALITY), self.args.jpeg_quality]
         images = {}
         for name, frame in frames.items():
@@ -330,7 +334,8 @@ class EdgeAgent:
             "joints": {name: float(joints[i]) for i, name in enumerate(JOINT_NAMES)},
             "images": images,
         }
-        self.client.submit(request, {"joints": joints.copy()})
+        if self.client.submit(request, {"joints": joints.copy()}):
+            self._last_submit_t = time.monotonic()
 
     # ---- app video ----
 
@@ -359,6 +364,12 @@ class EdgeAgent:
             self._infer_ms_log = []
         self._zero_since = self._stable_since = None
         if not args.dry_run:
+            if not self._configured:
+                # Same motor setup robot.connect() would do in main_act: position
+                # mode, P=16 (default 32 causes shakiness), gripper protections.
+                self.robot.configure()
+                self._configured = True
+                print("servo gains configured (P=16, matching main_act)")
             self.robot.bus.enable_torque()
         last_sent = self.read_joints()
         start = time.monotonic()
@@ -379,6 +390,7 @@ class EdgeAgent:
 
             with self._lock:
                 chunk, t0, fps, arrival = self._chunk, self._chunk_t0, self._chunk_fps, self._chunk_arrival
+                prev, prev_t0 = self._prev_chunk, self._prev_chunk_t0
             now = time.monotonic()
             if chunk is None:
                 if now - start > args.first_chunk_timeout_s:
@@ -390,8 +402,17 @@ class EdgeAgent:
                 if index < 0:
                     index = 0
                 if index < usable:
-                    target = self.clamp(chunk[index], last_sent)
-                    if not np.allclose(target, chunk[index], atol=1e-3):
+                    step_target = chunk[index]
+                    if args.blend_prev_chunk and prev is not None and now - prev_t0 < 2.0:
+                        # Poor-man's temporal ensemble: the checkpoint was rolled out
+                        # with per-tick ensembling; averaging the two most recent
+                        # chunks at the same wall-clock step recovers most of the
+                        # smoothing without per-tick inference.
+                        prev_index = int((now - prev_t0) * fps)
+                        if 0 <= prev_index < len(prev):
+                            step_target = 0.5 * step_target + 0.5 * prev[prev_index]
+                    target = self.clamp(step_target, last_sent)
+                    if not np.allclose(target, step_target, atol=1e-3):
                         clamp_hits += 1
                     self.write_joints(target)
                     last_sent = target
@@ -497,6 +518,8 @@ def main() -> None:
     parser.add_argument("--consume_cap_steps", type=int, default=10, help="Max chunk steps replayed before holding (1.0s at 10Hz).")
     parser.add_argument("--first_chunk_timeout_s", type=float, default=5.0)
     parser.add_argument("--link_lost_home_s", type=float, default=5.0)
+    parser.add_argument("--min_infer_period_s", type=float, default=0.0, help="Throttle observation uploads so several chunk steps replay between inferences (0 = adaptive, one-in-flight).")
+    parser.add_argument("--blend_prev_chunk", action=argparse.BooleanOptionalAction, default=True, help="Average the two most recent chunks at the aligned step (recovers temporal-ensemble smoothing).")
     parser.add_argument("--max_step_deg", type=float, default=6.0, help="Per-tick clamp for the five arm joints.")
     parser.add_argument("--max_step_gripper", type=float, default=25.0)
     parser.add_argument("--auto_stop_horizon", type=int, default=30)
