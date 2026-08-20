@@ -17,7 +17,7 @@
 
 - Windows 노트북 (아래는 Windows 기준. 리눅스면 포트명 `COM3`→`/dev/ttyACM0` 정도만 다름)
 - SO-101 로봇팔(서보 6개, 시리얼-USB 어댑터), USB 카메라 2대(top, wrist)
-- **캘리브레이션 파일 `my_follower.json`** — 레포에 없다. 팀 공유로 받아서 아무 폴더에 두면 된다 (아래에서 경로 지정). 이 파일이 없거나 다른 팔의 것이면 각도가 전부 어긋나므로 절대 임의 생성 금지
+- **캘리브레이션 파일** — 레포의 `calibration/my_follower.json`에 포함돼 있다 (우리 팀 로봇팔 전용). 팔을 재캘리브레이션하면 이 파일도 갱신해서 커밋할 것. 다른 팔의 파일을 쓰면 각도가 전부 어긋난다
 - Anaconda (또는 Miniconda)
 
 ## 2. conda 환경 구축
@@ -69,7 +69,7 @@ cmd 창에서 (PowerShell이면 `set` 대신 `$env:이름="값"`):
 cd <레포 경로>
 conda activate lerobot312
 set PYTHONIOENCODING=utf-8
-set LEROBOT_CALIBRATION_DIR=<my_follower.json이 있는 폴더>
+set LEROBOT_CALIBRATION_DIR=<레포 경로>\calibration
 set ROBOT_PORT=COM3
 set ACT_SERVER_URL=ws://203.230.252.22:40010
 python -m so101_pipeline.runtime.main_edge --max_step_deg 12 --min_infer_period_s 0.4
