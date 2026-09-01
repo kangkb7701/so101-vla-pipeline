@@ -59,7 +59,6 @@ JOINT_NAMES = (
 HOME_POSITION_DEG = np.asarray([-3.2, -104.8, 105.8, 78.6, 0.3, 2.3], dtype=np.float32)
 HOME_MOVE_DURATION_S = 2.5
 HOME_MOVE_HZ = 30
-CAMERA_PRIME_TIMEOUT_MS = 2000  # first frame after connect; the sensor is still settling
 ACT_ALLOWED_TASKS = (
     "pick the banana and place it in the green basket",
     "pick the banana and place it in the yellow basket",
@@ -129,103 +128,51 @@ def load_camera_mapping(args) -> dict:
 # ---------------------------------------------------------------- policy link
 
 class PolicyClient(threading.Thread):
-    """Up to max_inflight requests on the wire; reconnects with backoff.
+    """One request in flight; reconnects with backoff; laptop dials out."""
 
-    Pipelining: while the server runs inference on request N, request N+1 is
-    already uploading, so the vote rate approaches 1/max(upload, infer) instead
-    of 1/(upload + infer + rtt). The server handles one frame at a time per
-    connection, so replies come back in request order; snapshots are paired
-    FIFO, and the consumer's t_obs guard drops anything that still arrives
-    out of order.
-    """
-
-    def __init__(self, url: str, on_chunk, on_error, max_inflight: int = 2):
+    def __init__(self, url: str, on_chunk, on_error):
         super().__init__(name="policy-client", daemon=True)
         self.url = url
         self.on_chunk = on_chunk
         self.on_error = on_error
-        self.max_inflight = max(1, int(max_inflight))
-        self._requests: queue.Queue = queue.Queue(maxsize=self.max_inflight)
-        self._inflight = 0
-        self._inflight_lock = threading.Lock()
+        self._requests: queue.Queue = queue.Queue(maxsize=1)
         self._stop = threading.Event()
         self.connected = threading.Event()
 
     def submit(self, request: dict, snapshot: dict) -> bool:
-        """Non-blocking; False when max_inflight requests are already pending."""
-        with self._inflight_lock:
-            if self._inflight >= self.max_inflight:
-                return False
-            self._inflight += 1
+        """Non-blocking; False if a request is already in flight/queued."""
         try:
             self._requests.put_nowait((request, snapshot))
             return True
         except queue.Full:
-            with self._inflight_lock:
-                self._inflight -= 1
             return False
-
-    def _release(self) -> None:
-        with self._inflight_lock:
-            self._inflight = max(0, self._inflight - 1)
 
     def stop(self) -> None:
         self._stop.set()
 
     def run(self) -> None:
-        from collections import deque
-
         from websockets.sync.client import connect
 
         backoff = 0.5
         while not self._stop.is_set():
-            conn_dead = threading.Event()  # stops this connection's sender on teardown
             try:
                 with connect(self.url, max_size=32 * 1024 * 1024, open_timeout=5) as ws:
                     self.connected.set()
                     backoff = 0.5
-                    print(f"policy server connected: {self.url} (pipeline depth {self.max_inflight})")
-                    pending: deque = deque()  # snapshots FIFO; server replies in request order
-                    send_exc: list[Exception] = []
-
-                    def send_loop() -> None:
-                        try:
-                            while not self._stop.is_set() and not conn_dead.is_set():
-                                try:
-                                    request, snapshot = self._requests.get(timeout=0.2)
-                                except queue.Empty:
-                                    continue
-                                pending.append(snapshot)
-                                ws.send(msgpack.packb(request))
-                        except Exception as exc:  # noqa: BLE001 - surface to the recv loop
-                            send_exc.append(exc)
-
-                    sender = threading.Thread(target=send_loop, name="policy-sender", daemon=True)
-                    sender.start()
+                    print(f"policy server connected: {self.url}")
                     while not self._stop.is_set():
-                        if send_exc:
-                            raise send_exc[0]
                         try:
-                            raw = ws.recv(timeout=0.5)
-                        except TimeoutError:
-                            continue  # idle poll; genuine link failures raise other errors
-                        reply = msgpack.unpackb(raw, raw=False)
-                        snapshot = pending.popleft() if pending else None
-                        self._release()
-                        if reply.get("type") == "chunk" and snapshot is not None:
+                            request, snapshot = self._requests.get(timeout=0.2)
+                        except queue.Empty:
+                            continue
+                        ws.send(msgpack.packb(request))
+                        reply = msgpack.unpackb(ws.recv(timeout=10.0), raw=False)
+                        if reply.get("type") == "chunk":
                             self.on_chunk(reply, snapshot)
-                        elif reply.get("type") != "chunk":
+                        else:
                             self.on_error(f"server error: {reply.get('message')}")
             except Exception as exc:  # noqa: BLE001 - any link failure -> reconnect
                 self.connected.clear()
-                conn_dead.set()
-                while True:  # drop queued-but-unsent requests; their observations are stale now
-                    try:
-                        self._requests.get_nowait()
-                    except queue.Empty:
-                        break
-                with self._inflight_lock:
-                    self._inflight = 0  # in-flight requests died with the connection
                 self.on_error(f"policy link down ({type(exc).__name__}: {exc}); retrying in {backoff:.1f}s")
                 time.sleep(backoff)
                 backoff = min(backoff * 2, 5.0)
@@ -261,23 +208,16 @@ class EdgeAgent:
         self._chunk_fps = 10
         self._chunk_arrival = 0.0
         self._chunk_obs_joints = None
-        self._chunk_buf = []          # newest-last [(chunk, t0, fps)] for the temporal ensemble
-        self._zero_count = 0            # consecutive qualifying chunks, like main_act's counters
-        self._stable_count = 0
-        self._zero_metrics = (float("inf"), float("inf"))
-        self._stable_metrics = (float("inf"), float("inf"))
-        self._episode_start = 0.0
+        self._prev_chunk = None
+        self._prev_chunk_t0 = 0.0
+        self._zero_since = None
+        self._stable_since = None
         self._infer_ms_log = []
         self._episode_id = 0
         self._app_jpeg = None
         self._configured = False
         self._last_submit_t = 0.0
-        self._last_frames = {}        # per camera, for reuse across a dropped read
-        self._drop_streak = 0         # consecutive loop ticks with any dropped frame
-        self._drops_total = 0
-        self.client = PolicyClient(
-            args.server_url, self._handle_chunk, lambda msg: print(f"[link] {msg}"), max_inflight=args.max_inflight
-        )
+        self.client = PolicyClient(args.server_url, self._handle_chunk, lambda msg: print(f"[link] {msg}"))
 
     # ---- hardware ----
 
@@ -287,38 +227,7 @@ class EdgeAgent:
             raise SystemExit("motor calibration mismatch - check --calibration_dir / --robot_id")
         for cam in self.robot.cameras.values():
             cam.connect()
-        # Prime the reuse buffer patiently: read_frames() falls back to the last
-        # good frame, so every camera needs one before any loop starts.
-        for name, cam in self.robot.cameras.items():
-            self._last_frames[name] = cam.async_read(timeout_ms=CAMERA_PRIME_TIMEOUT_MS)
         print(f"bus connected on {self.args.robot_port}; cameras up; dry_run={self.args.dry_run}")
-
-    def read_frames(self) -> dict | None:
-        """Latest frame per camera, tolerating dropped reads.
-
-        lerobot's async_read raises TimeoutError when the USB read thread is
-        late (200ms default), which a hub hiccup triggers on its own. That used
-        to kill the agent outright - app backend, watchdog and torque state with
-        it - so a miss reuses the previous frame instead. Returns None once
-        --camera_drop_limit consecutive ticks have missed, i.e. the camera is
-        actually gone rather than merely late; acting on a frozen image past
-        that point is worse than stopping.
-        """
-        frames, dropped = {}, []
-        for name, cam in self.robot.cameras.items():
-            try:
-                frames[name] = self._last_frames[name] = cam.async_read()
-            except (TimeoutError, RuntimeError) as exc:
-                frames[name] = self._last_frames[name]
-                dropped.append(f"{name}({type(exc).__name__})")
-        if not dropped:
-            self._drop_streak = 0
-            return frames
-        self._drop_streak += 1
-        self._drops_total += 1
-        if self._drop_streak == 1 or self._drop_streak % 10 == 0:
-            print(f"[camera] frame drop: {', '.join(dropped)}; streak={self._drop_streak} total={self._drops_total}")
-        return None if self._drop_streak > self.args.camera_drop_limit else frames
 
     def read_joints(self) -> np.ndarray:
         positions = self.robot.bus.sync_read("Present_Position")
@@ -335,26 +244,6 @@ class EdgeAgent:
         )
         clamped = np.clip(target, reference - step, reference + step)
         return np.clip(clamped, LIMIT_LOW, LIMIT_HIGH)
-
-    def preset_gripper(self, target: float) -> None:
-        """Ramp only the gripper to the training-data start state.
-
-        The home pose parks the gripper closed (2.3), but every training episode
-        starts with it open (~40, the pipeline's canonical open position - see
-        GRIPPER_BINARY_OPEN_POS / ik_ctrl.gripper_open_pos). Starting an episode
-        closed is out of distribution and the policy just holds it shut, so the
-        episode precondition is restored explicitly instead of changing home.
-        """
-        current = self.read_joints()
-        if abs(float(current[5]) - target) < 2.0:
-            return
-        goal = current.copy()
-        steps = max(1, round(0.8 * HOME_MOVE_HZ))
-        for step in range(1, steps + 1):
-            goal[5] = current[5] + (step / steps) * (target - current[5])
-            self.write_joints(goal)
-            precise_sleep(1.0 / HOME_MOVE_HZ)
-        print(f"gripper preset to {target:.0f} (training start state)")
 
     def move_home(self, reason: str) -> None:
         print(f"returning home ({reason})...")
@@ -383,76 +272,47 @@ class EdgeAgent:
         with self._lock:
             if reply["episode_id"] != self._episode_id:
                 return  # stale reply from a previous task
-            if self._chunk is not None and reply["t_obs"] <= self._chunk_t0:
-                return  # out-of-order reply; keep the newer plan
+            self._prev_chunk, self._prev_chunk_t0 = self._chunk, self._chunk_t0
             self._chunk = chunk
             self._chunk_t0 = reply["t_obs"]
             self._chunk_fps = int(reply["fps"])
             self._chunk_arrival = time.monotonic()
             self._chunk_obs_joints = snapshot["joints"]
-            # Buffer every chunk until it expires (its last step is in the past);
-            # the ensemble needs the full set, like the baseline TemporalEnsembler.
-            mono = time.monotonic()
-            self._chunk_buf = [e for e in self._chunk_buf if int((mono - e[1]) * e[2]) < len(e[0])]
-            self._chunk_buf.append((chunk, reply["t_obs"], int(reply["fps"])))
-            # keep at least 2: the chunk-stability auto-stop compares newest vs previous
-            del self._chunk_buf[: -max(self.args.ensemble_chunks, 2)]
             self._infer_ms_log.append(reply.get("infer_ms", 0.0))
         self._update_auto_stop(chunk, reply["t_obs"], snapshot["joints"])
 
     def _update_auto_stop(self, chunk, t0, obs_joints) -> None:
-        """Baseline auto-stop, per arriving chunk (main_act checks per inference).
-
-        Like main_act: a condition must hold for N CONSECUTIVE chunks
-        (*_consecutive_steps), any miss resets its counter, and counting only
-        starts after the per-condition minimum episode duration.
-        """
-        args = self.args
-        elapsed = time.monotonic() - self._episode_start
-        horizon = max(1, min(args.auto_stop_horizon, len(chunk)))
-
+        args, now = self.args, time.monotonic()
+        horizon = min(args.auto_stop_horizon, len(chunk))
         zero_delta = np.abs(chunk[:horizon] - obs_joints[None, :])
-        self._zero_metrics = (float(zero_delta.max()), float(zero_delta.mean()))
-        is_zero = (
-            elapsed >= args.zero_velocity_min_duration_s
-            and self._zero_metrics[0] <= args.zero_velocity_max_delta_deg
-            and self._zero_metrics[1] <= args.zero_velocity_mean_delta_deg
-        )
-        self._zero_count = self._zero_count + 1 if is_zero else 0
+        is_zero = zero_delta.max() <= args.zero_velocity_max_delta_deg and zero_delta.mean() <= args.zero_velocity_mean_delta_deg
+        self._zero_since = (self._zero_since or now) if is_zero else None
 
-        with self._lock:
-            # buf[-1] is the chunk passed in; buf[-2] is the plan it replaced
-            prev, prev_t0 = self._chunk_buf[-2][:2] if len(self._chunk_buf) > 1 else (None, 0.0)
-        self._stable_metrics = (float("inf"), float("inf"))
         is_stable = False
+        with self._lock:
+            prev, prev_t0 = self._prev_chunk, self._prev_chunk_t0
         if prev is not None:
-            # main_act compares prev shifted by exactly one step; chunks here are
-            # spaced by the link, so shift by the observed spacing instead.
-            # offset 0 (a pipelined burst) is a valid comparison, not a reset.
-            offset = max(0, round((t0 - prev_t0) * self._chunk_fps))
+            offset = round((t0 - prev_t0) * self._chunk_fps)
             aligned = min(horizon, len(chunk), len(prev) - offset)
-            if aligned >= 1:
+            if 0 < offset and aligned >= 1:
                 delta = np.abs(chunk[:aligned] - prev[offset:offset + aligned])
-                self._stable_metrics = (float(delta.max()), float(delta.mean()))
-                is_stable = (
-                    elapsed >= args.chunk_stability_min_duration_s
-                    and self._stable_metrics[0] <= args.chunk_stability_max_delta_deg
-                    and self._stable_metrics[1] <= args.chunk_stability_mean_delta_deg
-                )
-        self._stable_count = self._stable_count + 1 if is_stable else 0
+                is_stable = delta.max() <= args.chunk_stability_max_delta_deg and delta.mean() <= args.chunk_stability_mean_delta_deg
+        self._stable_since = (self._stable_since or now) if is_stable else None
 
-    def auto_stop_reason(self) -> str | None:
-        args = self.args
-        if self._stable_count >= args.chunk_stability_consecutive_steps:
-            return (
-                f"stable action chunk for {self._stable_count} consecutive chunks "
-                f"(max_delta={self._stable_metrics[0]:.2f}, mean_delta={self._stable_metrics[1]:.2f})"
-            )
-        if self._zero_count >= args.zero_velocity_consecutive_steps:
-            return (
-                f"zero-velocity chunk for {self._zero_count} consecutive chunks "
-                f"(max_delta={self._zero_metrics[0]:.2f}, mean_delta={self._zero_metrics[1]:.2f})"
-            )
+    def auto_stop_reason(self, elapsed_s: float) -> str | None:
+        now, args = time.monotonic(), self.args
+        if (
+            self._zero_since is not None
+            and elapsed_s >= args.zero_velocity_min_duration_s
+            and now - self._zero_since >= args.auto_stop_sustain_s
+        ):
+            return "zero-velocity chunk"
+        if (
+            self._stable_since is not None
+            and elapsed_s >= args.chunk_stability_min_duration_s
+            and now - self._stable_since >= args.auto_stop_sustain_s
+        ):
+            return "stable chunk"
         return None
 
     # ---- observation upload ----
@@ -501,11 +361,9 @@ class EdgeAgent:
         args = self.args
         with self._lock:
             self._episode_id += 1
-            self._chunk = self._chunk_obs_joints = None
-            self._chunk_buf = []
+            self._chunk = self._prev_chunk = self._chunk_obs_joints = None
             self._infer_ms_log = []
-        self._zero_count = self._stable_count = 0
-        self._zero_metrics = self._stable_metrics = (float("inf"), float("inf"))
+        self._zero_since = self._stable_since = None
         if not args.dry_run:
             if not self._configured:
                 # Same motor setup robot.connect() would do in main_act: position
@@ -514,28 +372,15 @@ class EdgeAgent:
                 self._configured = True
                 print("servo gains configured (P=16, matching main_act)")
             self.robot.bus.enable_torque()
-            if args.episode_start_gripper >= 0.0:
-                self.preset_gripper(args.episode_start_gripper)
         last_sent = self.read_joints()
         start = time.monotonic()
-        self._episode_start = start
-        tick, chunks_used, clamp_hits, holds, ensemble_n = 0, 0, 0, 0, 1
-        # Task-cycle stop: after task completion the policy extrapolates outside
-        # its training data (demos end right after the place) and may drift
-        # instead of settling, so the stillness detectors never fire over the
-        # link. The grasp->release cycle IS the task's success signal, and the
-        # measured gripper shows it unambiguously: closed (holding) for a while,
-        # then reopened at the basket.
-        grasp_since, grasped, release_t = None, False, None
+        tick, chunks_used, clamp_hits, holds = 0, 0, 0, 0
         print(f"episode {self._episode_id} start: {task!r}")
 
         while time.monotonic() - start < args.duration_s:
             loop_t = time.monotonic()
             joints = self.read_joints()
-            frames = self.read_frames()
-            if frames is None:
-                print(f"camera stalled for {self._drop_streak} ticks - safety stop")
-                return None
+            frames = {name: cam.async_read() for name, cam in self.robot.cameras.items()}
             self.publish_app_frame(frames)
             self.maybe_submit_observation(task, joints, frames)
 
@@ -546,7 +391,7 @@ class EdgeAgent:
 
             with self._lock:
                 chunk, t0, fps, arrival = self._chunk, self._chunk_t0, self._chunk_fps, self._chunk_arrival
-                buf = list(self._chunk_buf)
+                prev, prev_t0 = self._prev_chunk, self._prev_chunk_t0
             now = time.monotonic()
             if chunk is None:
                 if now - start > args.first_chunk_timeout_s:
@@ -559,27 +404,14 @@ class EdgeAgent:
                     index = 0
                 if index < usable:
                     step_target = chunk[index]
-                    if args.ensemble_chunks > 1 and len(buf) > 1:
-                        # Wall-clock port of the baseline ACTTemporalEnsembler
-                        # (modeling_act.py): every chunk that covers this instant
-                        # votes, weighted exp(-coeff * rank) with the OLDEST
-                        # contributor at rank 0, i.e. weighted highest - exactly
-                        # the baseline's w_i = exp(-m*i) with m=0.01. This is what
-                        # commits transitions: a plan that scheduled "open the
-                        # gripper at T" gets executed at T even if fresher plans
-                        # keep deferring it.
-                        acc = np.zeros_like(step_target)
-                        weight_sum = 0.0
-                        ensemble_n = 0
-                        for c, c_t0, c_fps in buf:  # buf is oldest-first
-                            c_index = int((now - c_t0) * c_fps)
-                            if 0 <= c_index < len(c):
-                                w = float(np.exp(-args.ensemble_coeff * ensemble_n))
-                                acc += w * c[c_index]
-                                weight_sum += w
-                                ensemble_n += 1
-                        if weight_sum > 0.0:
-                            step_target = acc / weight_sum
+                    if args.blend_prev_chunk and prev is not None and now - prev_t0 < 2.0:
+                        # Poor-man's temporal ensemble: the checkpoint was rolled out
+                        # with per-tick ensembling; averaging the two most recent
+                        # chunks at the same wall-clock step recovers most of the
+                        # smoothing without per-tick inference.
+                        prev_index = int((now - prev_t0) * fps)
+                        if 0 <= prev_index < len(prev):
+                            step_target = 0.5 * step_target + 0.5 * prev[prev_index]
                     target = self.clamp(step_target, last_sent)
                     if not np.allclose(target, step_target, atol=1e-3):
                         clamp_hits += 1
@@ -592,25 +424,7 @@ class EdgeAgent:
                         print(f"link stale for {now - arrival:.1f}s - safety stop")
                         return None
 
-            if args.auto_stop_on_release:
-                gripper_pos = float(joints[5])
-                if not grasped:
-                    if gripper_pos <= args.grasp_close_below:
-                        grasp_since = grasp_since or now
-                        if now - grasp_since >= args.grasp_min_s:
-                            grasped = True
-                            print(f"grasp detected (gripper held <= {args.grasp_close_below:.0f} for {args.grasp_min_s:.1f}s)")
-                    else:
-                        grasp_since = None
-                elif release_t is None and gripper_pos >= args.release_open_above:
-                    release_t = now  # latched: a later re-close doesn't cancel it
-                    print(f"release detected (gripper reopened to {gripper_pos:.0f} after grasp)")
-                if release_t is not None and now - release_t >= args.success_settle_s:
-                    print("auto stop: grasp-release cycle complete")
-                    self.store.record_success(task)
-                    return None
-
-            reason = self.auto_stop_reason()
+            reason = self.auto_stop_reason(now - start)
             if reason:
                 print(f"auto stop: {reason}")
                 self.store.record_success(task)
@@ -621,13 +435,7 @@ class EdgeAgent:
                 infer = self._infer_ms_log[-1] if self._infer_ms_log else float("nan")
                 print(
                     f"[edge {tick:04d}] chunk_age={age:5.2f}s steps={chunks_used} holds={holds} "
-                    f"clamps={clamp_hits} drops={self._drops_total} ens={ensemble_n} "
-                    f"grip={last_sent[5]:3.0f}/{joints[5]:3.0f} infer={infer:.0f}ms "
-                    f"zv={self._zero_metrics[0]:.1f}/{self._zero_metrics[1]:.1f} "
-                    f"{self._zero_count}/{args.zero_velocity_consecutive_steps} "
-                    f"st={self._stable_metrics[0]:.1f}/{self._stable_metrics[1]:.1f} "
-                    f"{self._stable_count}/{args.chunk_stability_consecutive_steps} "
-                    f"link={'up' if self.client.connected.is_set() else 'DOWN'}"
+                    f"clamps={clamp_hits} infer={infer:.0f}ms link={'up' if self.client.connected.is_set() else 'DOWN'}"
                 )
             tick += 1
             precise_sleep(max(1.0 / args.control_fps - (time.monotonic() - loop_t), 0.0))
@@ -653,13 +461,9 @@ class EdgeAgent:
 
         try:
             while True:
-                # idle: keep the app camera view alive at ~10fps. A stalled
-                # camera must not take the app backend down with it - the
-                # operator needs the app to stay up to see something is wrong -
-                # so idle only warns and keeps serving the last frame.
-                frames = self.read_frames()
-                if frames is not None:
-                    self.publish_app_frame(frames)
+                # idle: keep the app camera view alive at ~10fps
+                frames = {name: cam.async_read() for name, cam in self.robot.cameras.items()}
+                self.publish_app_frame(frames)
 
                 state = self.store.snapshot()
                 instruction = state["instruction"] or {}
@@ -715,25 +519,15 @@ def main() -> None:
     parser.add_argument("--jpeg_quality", type=int, default=70, help="Policy observation JPEG quality.")
     parser.add_argument("--app_jpeg_quality", type=int, default=70)
     parser.add_argument("--duration_s", type=float, default=30.0)
-    parser.add_argument("--consume_cap_steps", type=int, default=50, help="Max chunk steps replayed before holding. Default = full chunk, matching the baseline TemporalEnsembler which votes every step; the link-loss watchdog still homes after link_lost_home_s. Lower to bound how long a stale plan may run.")
+    parser.add_argument("--consume_cap_steps", type=int, default=10, help="Max chunk steps replayed before holding (1.0s at 10Hz).")
     parser.add_argument("--first_chunk_timeout_s", type=float, default=5.0)
     parser.add_argument("--link_lost_home_s", type=float, default=5.0)
-    parser.add_argument("--camera_drop_limit", type=int, default=20, help="Consecutive ticks a camera may miss before the episode safety-stops (2.0s at 10Hz); single drops reuse the last frame.")
-    parser.add_argument("--episode_start_gripper", type=float, default=40.0, help="Open the gripper to this position at episode start (training episodes begin open; home parks it closed). Negative disables.")
-    parser.add_argument("--min_infer_period_s", type=float, default=0.0, help="Throttle observation uploads so several chunk steps replay between inferences (0 = adaptive, as fast as the pipeline allows).")
-    parser.add_argument("--max_inflight", type=int, default=2, help="Requests allowed on the wire at once. 2 overlaps upload with server inference (~2x vote rate); 1 restores strict one-in-flight.")
-    parser.add_argument("--ensemble_chunks", type=int, default=50, help="Max chunks kept for the wall-clock temporal ensemble (expired ones are pruned anyway). Default keeps every chunk that can still cover the present, matching the baseline TemporalEnsembler; 1 disables.")
-    parser.add_argument("--ensemble_coeff", type=float, default=-0.05, help="Ensemble rank-decay coefficient w_i=exp(-coeff*i) with rank 0 = oldest. Negative favors NEWER chunks (more reactive); the checkpoint's own temporal_ensemble_coeff was +0.01 (oldest-heavy, smoother).")
+    parser.add_argument("--min_infer_period_s", type=float, default=0.0, help="Throttle observation uploads so several chunk steps replay between inferences (0 = adaptive, one-in-flight).")
+    parser.add_argument("--blend_prev_chunk", action=argparse.BooleanOptionalAction, default=True, help="Average the two most recent chunks at the aligned step (recovers temporal-ensemble smoothing).")
     parser.add_argument("--max_step_deg", type=float, default=6.0, help="Per-tick clamp for the five arm joints.")
     parser.add_argument("--max_step_gripper", type=float, default=25.0)
     parser.add_argument("--auto_stop_horizon", type=int, default=30)
-    parser.add_argument("--auto_stop_on_release", action=argparse.BooleanOptionalAction, default=True, help="Stop when the measured gripper completes a grasp->release cycle (task success for pick-and-place).")
-    parser.add_argument("--grasp_close_below", type=float, default=15.0, help="Measured gripper position treated as closed/holding (banana grasp reads ~10, empty close ~2).")
-    parser.add_argument("--release_open_above", type=float, default=25.0, help="Measured gripper position treated as released after a grasp (place-open reads ~36).")
-    parser.add_argument("--grasp_min_s", type=float, default=1.5, help="How long the gripper must stay closed to count as a grasp (transport takes several seconds; brief dips don't).")
-    parser.add_argument("--success_settle_s", type=float, default=3.0, help="Delay between the release event and the stop, so the place finishes cleanly.")
-    parser.add_argument("--zero_velocity_consecutive_steps", type=int, default=20, help="Consecutive qualifying chunks before zero-velocity auto-stop (matches main_act's counter).")
-    parser.add_argument("--chunk_stability_consecutive_steps", type=int, default=20, help="Consecutive qualifying chunks before stable-chunk auto-stop (matches main_act's counter).")
+    parser.add_argument("--auto_stop_sustain_s", type=float, default=2.0)
     parser.add_argument("--zero_velocity_min_duration_s", type=float, default=12.0)
     parser.add_argument("--zero_velocity_max_delta_deg", type=float, default=3.0)
     parser.add_argument("--zero_velocity_mean_delta_deg", type=float, default=0.8)
