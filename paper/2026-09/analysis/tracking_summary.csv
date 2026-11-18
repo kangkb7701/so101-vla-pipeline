@@ -1,0 +1,5 @@
+repr,episodes,best_lag_frames,err_at_best_lag_deg,err_free_deg,err_holding_deg,holding_frames,boundary_phase,boundary_jump_p50,boundary_jump_p95,within_step_p50,within_step_p95,phase_contrast,task_gap_mm_p50,task_gap_mm_p95
+abs_joint,20,2,0.86,0.84,0.95,936,14,2.67,7.38,1.81,6.11,1.34,,
+rel_joint,17,2,0.68,0.67,0.89,487,14,1.48,4.7,0.68,4.67,1.42,,
+abs_ee,8,2,0.92,0.92,1.09,69,14,3.77,8.77,1.84,5.21,1.95,7.9,18.6
+rel_ee,9,2,0.77,0.76,1.32,59,6,1.13,4.47,1.4,5.12,1.49,4.2,15.0

@@ -1,0 +1,16 @@
+2026-09-27 07:52:43 waiting for running job pid 382802 (abs_joint)
+2026-09-27 10:31:43 START rel_joint attempt 1 (fresh)
+2026-09-27 13:15:44 EXIT rel_joint code=0
+2026-09-27 13:15:44 DONE rel_joint
+2026-09-27 13:15:44 START abs_ee attempt 1 (fresh)
+2026-09-27 15:16:04 pi05 waiting for SmolVLA queue pid 467350
+2026-09-27 16:00:44 EXIT abs_ee code=0
+2026-09-27 16:00:44 DONE abs_ee
+2026-09-27 16:00:44 START rel_ee attempt 1 (fresh)
+2026-09-27 18:51:45 EXIT rel_ee code=0
+2026-09-27 18:51:45 DONE rel_ee
+2026-09-27 18:51:45 QUEUE FINISHED: abs_joint=done rel_joint=done abs_ee=done rel_ee=done 
+2026-09-27 18:52:04 START pi05_abs_joint attempt 1 (fresh)
+2026-09-28 07:16:06 EXIT pi05_abs_joint code=0
+2026-09-28 07:16:06 DONE pi05_abs_joint
+2026-09-28 07:16:06 PI05 FINISHED: done

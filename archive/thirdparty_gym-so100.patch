@@ -1,0 +1,675 @@
+diff --git a/example.py b/example.py
+index f9f506e..f3d12de 100644
+--- a/example.py
++++ b/example.py
+@@ -3,7 +3,7 @@ import gymnasium as gym
+ import numpy as np
+ import gym_so100
+ 
+-env = gym.make("gym_so100/SO100EEInsertion-v0")
++env = gym.make("SO100EEInsertion-v0")
+ observation, info = env.reset()
+ frames = []
+ 
+diff --git a/kkb_scripts/1.py b/kkb_scripts/1.py
+new file mode 100644
+index 0000000..78932e9
+--- /dev/null
++++ b/kkb_scripts/1.py
+@@ -0,0 +1,56 @@
++import numpy as np
++import genesis as gs
++
++# Genesis 초기화 (NVIDIA GPU 가속 사용)
++gs.init(backend=gs.cuda)
++
++# 씬(Scene) 설정
++scene = gs.Scene(
++    sim_options=gs.options.SimOptions(dt=0.01),
++    viewer_options=gs.options.ViewerOptions(
++        camera_pos=(3, -1, 1.5),
++        camera_lookat=(0.0, 0.0, 0.5),
++        camera_fov=30,
++    ),
++    show_viewer=True,
++)
++
++# 바닥 평면 추가
++plane = scene.add_entity(gs.morphs.Plane())
++
++# [1] URDF 로드 (SO-101 등 고정형 로봇)
++so101 = scene.add_entity(
++    gs.morphs.URDF(
++        file="/home/aivlab/SO-ARM100/Simulation/SO101/so101_new_calib.urdf",  # 나중에 이 부분을 SO-101 경로로 수정해
++        pos=(0, 0, 0),
++        euler=(0, 0, 0),
++        fixed=True,
++        scale=1.0,
++        merge_fixed_links=True,
++    )
++)
++
++# 씬 빌드 (컴파일)
++scene.build()
++
++# 1~3번 출력은 그대로 유지
++print("Links:", [link.name for link in so101.links])
++print("Joints:", [joint.name for joint in so101.joints])
++print("DoFs:", so101.n_dofs)
++
++# 4. 각 자유도별 가동 범위(Limit) 확인 (함수로 호출)
++# get_dofs_limit()은 (lower_limits, upper_limits) 튜플을 반환합니다.
++lower_limits, upper_limits = so101.get_dofs_limit()
++
++print("DoF lower limit:", lower_limits)
++print("DoF upper limit:", upper_limits)
++
++# 관절별로 예쁘게 보고 싶다면 아래처럼 작성해 보세요
++for i, joint in enumerate(so101.joints):
++    # 그리퍼 같은 Fixed 조인트는 DoF에서 제외될 수 있으니 인덱스 확인이 필요합니다
++    if i < len(lower_limits):
++        print(f"Joint [{joint.name}]: Limit = {lower_limits[i]:.2f} ~ {upper_limits[i]:.2f} (rad)")
++
++# 시뮬레이션 루프 (화면 확인용)
++while True:
++    scene.step()
+\ No newline at end of file
+diff --git a/kkb_scripts/2.py b/kkb_scripts/2.py
+new file mode 100644
+index 0000000..f210410
+--- /dev/null
++++ b/kkb_scripts/2.py
+@@ -0,0 +1,25 @@
++import genesis as gs
++import numpy as np
++
++gs.init(backend=gs.cuda)
++scene = gs.Scene(show_viewer=True)
++plane = scene.add_entity(gs.morphs.Plane())
++
++so101 = scene.add_entity(
++    gs.morphs.URDF(
++        file="/home/aivlab/SO-ARM100/Simulation/SO101/so101_new_calib.urdf",
++        fixed=True,
++    )
++)
++scene.build()
++
++# [삭제된 부분] so101.set_dofs_control_mode(...) 삭제됨
++
++for i in range(10000):
++    # -0.5 ~ 0.5 rad 사이를 부드럽게 움직이는 사인파 생성
++    target_pos = np.sin(i * 0.02) * 0.5
++    
++    # 6개 관절에 목표 각도 전송 (자동으로 위치 제어 모드로 동작)
++    so101.control_dofs_position(np.array([target_pos] * 6))
++    
++    scene.step()
+\ No newline at end of file
+diff --git a/kkb_scripts/test.py b/kkb_scripts/test.py
+new file mode 100644
+index 0000000..8499703
+--- /dev/null
++++ b/kkb_scripts/test.py
+@@ -0,0 +1,57 @@
++import gymnasium as gym
++
++import gym_so100
++
++import cv2
++
++import numpy as np
++
++
++# 1. 환경 설정 (render_mode를 지정해줘야 이미지 데이터를 뽑을 수 있습니다)
++
++env = gym.make("SO100EEInsertion-v0", render_mode="rgb_array")
++
++obs, info = env.reset()
++
++
++print("[Info] 시뮬레이션 시작! 창이 뜨면 'q'를 눌러 종료하세요.")
++
++
++for _ in range(1000):
++
++    # 랜덤 액션
++
++    action = env.action_space.sample()
++
++    obs, reward, terminated, truncated, info = env.step(action)
++
++    
++
++    # 2. 이미지 데이터 추출 및 OpenCV 창에 표시
++
++    frame = env.render()
++
++    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR) # RGB를 BGR로 변환
++
++    
++
++    cv2.imshow("SO-101 Live Simulation", frame_bgr)
++
++    
++
++    # 창이 너무 빨리 닫히지 않게 약간의 대기(10ms) 추가
++
++    if cv2.waitKey(10) & 0xFF == ord('q'):
++
++        break
++
++    
++
++    if terminated or truncated:
++
++        obs, info = env.reset()
++
++
++env.close()
++
++cv2.destroyAllWindows() 
+diff --git a/kkb_scripts/test_ik.py b/kkb_scripts/test_ik.py
+new file mode 100644
+index 0000000..abb75c0
+--- /dev/null
++++ b/kkb_scripts/test_ik.py
+@@ -0,0 +1,93 @@
++import time
++import cv2
++import numpy as np
++import gymnasium as gym
++import gym_so100
++import ikpy.chain
++
++# 1. IK 설정
++URDF_FILE_PATH = "/home/aivlab/SO-ARM100/Simulation/SO101/so101_new_calib.urdf"
++
++try:
++    so101_chain = ikpy.chain.Chain.from_urdf_file(URDF_FILE_PATH)
++    print("✅ IK Chain 로드 완료")
++except Exception as e:
++    print(f"❌ URDF 로드 실패: {e}")
++    exit()
++
++# 2. 확실한 움직임 테스트 (Z축으로 10cm 상승)
++test_actions = [
++    {"name": "Move UP 10cm", "action": [0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0]}
++]
++
++# 3. 환경 초기화 (목록에서 확인된 환경 사용)
++ENV_ID = "SO100Insertion-v0"
++env = gym.make(ENV_ID, render_mode="rgb_array")
++obs, info = env.reset()
++
++env_action_dim = env.action_space.shape[0] 
++print(f"✅ 환경 로드 완료: Action Space 차원수 = {env_action_dim}")
++
++cv2.namedWindow("One Arm Control in Dual Env", cv2.WINDOW_NORMAL)
++
++# 4. 웜업: 물리 엔진 안정화 및 0도 정렬
++print("⏳ 로봇 팔을 초기 자세(0도)로 정렬 중...")
++zero_action = np.zeros(env_action_dim)
++for _ in range(20): 
++    frame_rgb = env.render()
++    env.step(zero_action) 
++    
++    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
++    cv2.putText(frame_bgr, "Warm-up: Aligning to Zero...", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
++    cv2.imshow("One Arm Control in Dual Env", frame_bgr)
++    cv2.waitKey(50)
++
++print("\n🚀 메인 팔 10cm 상승 테스트 시작!")
++current_joint_angles = np.zeros(len(so101_chain.links))
++
++for test in test_actions:
++    current_fk = so101_chain.forward_kinematics(current_joint_angles)
++    start_pos = current_fk[:3, 3]
++    target_pos = start_pos + np.array(test['action'][:3])
++    target_ori = current_fk[:3, :3] 
++    
++    steps = 40 
++    
++    for step in range(1, steps + 1):
++        frame_rgb = env.render()
++        
++        current_target_pos = start_pos + (target_pos - start_pos) * (step / steps)
++        
++        target_joint_angles = so101_chain.inverse_kinematics(
++            target_position=current_target_pos,
++            target_orientation=target_ori,
++            orientation_mode="all",
++            initial_position=current_joint_angles
++        )
++        current_joint_angles = target_joint_angles
++        
++        # ---------------------------------------------------------
++        # [핵심] 양팔 환경에서 한 팔만 제어하기
++        # ---------------------------------------------------------
++        # 전체 모터 배열을 0으로 초기화 (나머지 팔은 무조건 0 유지)
++        safe_action = np.zeros(env_action_dim) 
++        motors = target_joint_angles[1:7] # IK로 계산된 메인 팔의 6개 관절값
++        
++        # 앞쪽 6개(메인 팔)에만 계산된 각도 입력
++        safe_action[:6] = motors
++        
++        obs, reward, terminated, truncated, info = env.step(safe_action)
++        
++        # 화면 출력
++        frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
++        cv2.putText(frame_bgr, f"TEST: {test['name']}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
++        cv2.putText(frame_bgr, f"Step: {step}/{steps}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
++        
++        cv2.imshow("One Arm Control in Dual Env", frame_bgr)
++        
++        if cv2.waitKey(50) & 0xFF == ord('q'):
++            break
++
++env.close()
++cv2.destroyAllWindows()
++print("✅ 테스트 완료")
+\ No newline at end of file
+diff --git a/kkb_scripts/test_openvla_sim.py b/kkb_scripts/test_openvla_sim.py
+new file mode 100644
+index 0000000..558e8cb
+--- /dev/null
++++ b/kkb_scripts/test_openvla_sim.py
+@@ -0,0 +1,128 @@
++import time
++import cv2
++import torch
++import numpy as np
++import genesis as gs
++from PIL import Image
++from scipy.spatial.transform import Rotation as R
++from transformers import AutoModelForVision2Seq, AutoProcessor
++
++def to_numpy(obj):
++    if isinstance(obj, torch.Tensor):
++        return obj.detach().cpu().numpy()
++    elif isinstance(obj, (list, tuple)):
++        return np.array([to_numpy(o) for o in obj])
++    return np.array(obj)
++
++# ==========================================
++# 1. OpenVLA 로드
++# ==========================================
++model_id = "openvla/openvla-7b"
++print(f"[1/3] 📡 RTX 3090 환경에서 {model_id} 로드 중...")
++
++processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
++vla = AutoModelForVision2Seq.from_pretrained(
++    model_id, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, trust_remote_code=True
++).to("cuda")
++
++# ==========================================
++# 2. Genesis 초기화
++# ==========================================
++print("\n[2/3] Genesis 물리 엔진 초기화 중...")
++gs.init(backend=gs.cuda)
++scene = gs.Scene(show_viewer=True)
++plane = scene.add_entity(gs.morphs.Plane())
++
++so101 = scene.add_entity(gs.morphs.URDF(file="/home/aivlab/SO-ARM100/Simulation/SO101/so101_new_calib.urdf", fixed=True))
++cube = scene.add_entity(gs.morphs.Box(size=(0.04, 0.04, 0.04), pos=(0.35, 0.0, 0.02)), surface=gs.surfaces.Rough(color=(1.0, 0.0, 0.0)))
++# 로봇 약간 뒤쪽, 위에서 대각선 아래로 큐브를 내려다보며 그리퍼와 큐브가 함께 나오도록 설정
++cam = scene.add_camera(
++    res=(640, 480), 
++    pos=(-0.7, -0.15, 0.78), # 뒤로 25cm, 위로 20cm 더 이동
++    lookat=(0.3, 0.0, 0.0) # 여전히 빨간 큐브 주변을 응시
++)
++
++scene.build()
++ee_link = so101.get_link("gripper_link")
++
++so101.set_dofs_position(np.array([0.0, -0.5, 0.5, 0.0, 0.0, 0.0]))
++scene.step()
++
++# ==========================================
++# 3. 메인 루프 (서브-스텝 구조)
++# ==========================================
++print("\n[3/3] 시뮬레이션 시작! (화면 창이 켜진 상태에서 'q'를 누르면 종료)")
++instruction = "pick up the red cube"
++
++# VLA의 상대 변위(Action)를 누적할 전역 타겟 변수
++target_pos_global = to_numpy(ee_link.get_pos()).flatten()
++target_quat_global = to_numpy(ee_link.get_quat()).flatten()
++gripper_target = -0.17
++
++SUB_STEPS = 30  # VLA 추론 1회당 쪼개서 보여줄 물리 엔진 프레임 수 (움직임의 부드러움을 결정)
++
++try:
++    while True:
++        # ----------------------------------------------------
++        # [A] 찰칵! (현재 상태 캡처 및 VLA 추론) - 이 동안 시뮬레이션 시간은 정지
++        # ----------------------------------------------------
++        render_output = cam.render(rgb=True)
++        frame_rgb = to_numpy(render_output[0] if isinstance(render_output, tuple) else render_output)
++        if frame_rgb.ndim == 4: frame_rgb = frame_rgb[0]
++        if frame_rgb.dtype in [np.float32, np.float64]: frame_rgb = (frame_rgb * 255).clip(0, 255).astype(np.uint8)
++        
++        image_pil = Image.fromarray(frame_rgb).convert("RGB")
++        
++        start_time = time.time()
++        inputs = processor(instruction, image_pil).to("cuda", dtype=torch.bfloat16)
++        action_raw = vla.predict_action(**inputs, unnorm_key="bridge_orig", do_sample=False)
++        action = to_numpy(action_raw).flatten()
++        vla_latency = time.time() - start_time
++
++        # ----------------------------------------------------
++        # [B] 최종 목표 궤적 계산
++        # ----------------------------------------------------
++        if len(action) >= 7:
++            target_pos_global += action[:3]
++            
++            delta_rot = R.from_euler('xyz', action[3:6], degrees=False)
++            current_rot = R.from_quat(target_quat_global)
++            target_quat_global = (delta_rot * current_rot).as_quat()
++            
++            gripper_target = 1.75 if action[6] > 0 else -0.17
++
++        # IK를 통해 도달해야 할 최종 관절 각도 도출
++        target_q_tensor = so101.inverse_kinematics(link=ee_link, pos=target_pos_global, quat=target_quat_global)
++        target_q_final = to_numpy(target_q_tensor).flatten()
++        if len(target_q_final) >= 6: target_q_final[5] = gripper_target
++
++        # ----------------------------------------------------
++        # [C] 서브-스텝 보간 재생 (눈으로 보기에 부드럽게 움직이는 구간)
++        # ----------------------------------------------------
++        current_q = to_numpy(so101.get_dofs_position()).flatten()
++        
++        for step in range(1, SUB_STEPS + 1):
++            # 선형 보간(Linear Interpolation)으로 현재 각도에서 최종 목표 각도까지 쪼개서 이동
++            interpolated_q = current_q + (target_q_final - current_q) * (step / SUB_STEPS)
++            
++            so101.control_dofs_position(interpolated_q)
++            scene.step()
++            
++            # (선택) 보간되는 동안 카메라도 같이 렌더링해서 보여주기
++            sub_render = cam.render(rgb=True)
++            sub_frame = to_numpy(sub_render[0] if isinstance(sub_render, tuple) else sub_render)
++            if sub_frame.ndim == 4: sub_frame = sub_frame[0]
++            if sub_frame.dtype in [np.float32, np.float64]: sub_frame = (sub_frame * 255).clip(0, 255).astype(np.uint8)
++            
++            frame_bgr = cv2.cvtColor(sub_frame, cv2.COLOR_RGB2BGR)
++            cv2.putText(frame_bgr, f"VLA Latency: {vla_latency*1000:.1f}ms", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
++            cv2.putText(frame_bgr, f"Interpolation: {step}/{SUB_STEPS}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
++            
++            cv2.imshow("OpenVLA x Genesis (Sub-step)", frame_bgr)
++            if cv2.waitKey(1) & 0xFF == ord('q'):
++                raise KeyboardInterrupt
++
++except KeyboardInterrupt:
++    print("\n사용자에 의해 강제 종료되었습니다.")
++finally:
++    cv2.destroyAllWindows()
+\ No newline at end of file
+diff --git a/kkb_scripts/test_vla_IK.py b/kkb_scripts/test_vla_IK.py
+new file mode 100644
+index 0000000..66843c3
+--- /dev/null
++++ b/kkb_scripts/test_vla_IK.py
+@@ -0,0 +1,132 @@
++import time
++import cv2
++import torch
++import numpy as np
++import gymnasium as gym
++import gym_so100
++from PIL import Image
++from transformers import AutoModelForVision2Seq, AutoProcessor
++import ikpy.chain
++from scipy.spatial.transform import Rotation as R
++
++# ---------------------------------------------------------
++# [IK 설정] SO-101 URDF 기반 Kinematics Chain 로드
++# ---------------------------------------------------------
++URDF_FILE_PATH = "/home/aivlab/SO-ARM100/Simulation/SO101/so101_new_calib.urdf" # 실제 URDF 경로로 변경 필수
++try:
++    so101_chain = ikpy.chain.Chain.from_urdf_file(URDF_FILE_PATH)
++    print(f"✅ IK Chain 로드 완료: {len(so101_chain.links)} joints found.")
++except Exception as e:
++    print(f"⚠️ URDF 로드 실패 (경로를 확인하세요): {e}")
++    so101_chain = None
++
++# 1. 모델 및 환경 초기화
++model_id = "openvla/openvla-7b"
++print(f"📡 RTX 3090 환경에서 {model_id} 로드 중...")
++
++processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
++vla = AutoModelForVision2Seq.from_pretrained(
++    model_id, 
++    torch_dtype=torch.bfloat16, 
++    low_cpu_mem_usage=True, 
++    trust_remote_code=True
++).to("cuda")
++
++# 시뮬레이션 환경 (SO-101 로봇)
++env = gym.make("SO100EEInsertion-v0", render_mode="rgb_array")
++obs, info = env.reset()
++
++instruction = "pick up the red cube" # 태스크 지시문
++
++print("[Info] 시뮬레이션 시작! (창에서 'q'를 누르면 종료)")
++
++# 로봇의 초기 관절 상태 (환경의 초기 obs에서 가져오거나 0으로 초기화)
++# URDF의 joint 수에 맞춰야 합니다. (Base + 6축 기준 = 7)
++current_joint_angles = np.zeros(len(so101_chain.links)) if so101_chain else np.zeros(7)
++
++# 2. 제어 및 측정 루프
++for sttep in range(1000):
++    frame_rgb = env.render()
++    image_pil = Image.fromarray(frame_rgb).convert("RGB")
++    
++    start_time = time.time()
++    
++    inputs = processor(instruction, image_pil).to("cuda", dtype=torch.bfloat16)
++    
++    # OpenVLA 추론 실행 (7D Vector: [dx, dy, dz, droll, dpitch, dyaw, gripper])
++    action = vla.predict_action(**inputs, unnorm_key="bridge_orig", do_sample=False)
++    
++    latency = time.time() - start_time
++    fps = 1.0 / latency if latency > 0 else 0.0
++    
++    # ---------------------------------------------------------
++    # 3. [핵심] 역기구학(IK) 적용 영역
++    # ---------------------------------------------------------
++    env_action_dim = env.action_space.shape[0]
++    safe_action = np.zeros(env_action_dim)
++    
++    if so101_chain is not None:
++        # 3.1. OpenVLA 출력을 목표 Pose와 그리퍼로 분리
++        # (주의: 모델이 절대 위치를 뱉는지, 상대 변화량(Delta)을 뱉는지 데이터셋 기준 확인 필요. 여기선 상대 변화량으로 가정)
++        ee_delta_pos = action[:3]
++        ee_delta_ori = action[3:6] # Roll, Pitch, Yaw
++        gripper_action = action[6]
++        
++        # 3.2. 현재 EE의 변환 행렬(Forward Kinematics) 계산
++        current_fk_matrix = so101_chain.forward_kinematics(current_joint_angles)
++        current_pos = current_fk_matrix[:3, 3]
++        current_rot = current_fk_matrix[:3, :3]
++        
++        # 3.3. 목표 EE 변환 행렬 계산 (현재 위치 + 변화량)
++        target_pos = current_pos + ee_delta_pos
++        delta_rot = R.from_euler('xyz', ee_delta_ori).as_matrix()
++        target_rot = delta_rot @ current_rot # 회전 행렬 업데이트
++        
++        # 불필요한 target_matrix 4x4 생성 코드 삭제
++        
++        # 3.4. IK 연산 수행하여 모터 관절값(Target Joints) 역산
++        # ikpy 규격에 맞게 위치(3D)와 회전(3x3)을 명시적으로 분리하여 전달합니다.
++        target_joint_angles = so101_chain.inverse_kinematics(
++            target_position=target_pos,
++            target_orientation=target_rot,
++            orientation_mode="all", 
++            initial_position=current_joint_angles
++        )
++        
++        # 다음 스텝을 위해 상태 업데이트
++        current_joint_angles = target_joint_angles
++        
++        # 3.5. 환경 Action Space에 맞게 패딩 (가상 링크나 고정 링크 제외하고 실제 모터값만 추출)
++        # ikpy는 보통 [0]번 인덱스를 Base로 사용하므로 [1:7] 추출 (6축 로봇 기준)
++        motor_commands = target_joint_angles[1:7] 
++        safe_action[:len(motor_commands)] = motor_commands
++        
++        # 그리퍼 값 매핑 (환경에 따라 인덱스 확인 필요)
++        if env_action_dim > len(motor_commands):
++            safe_action[len(motor_commands)] = gripper_action
++            
++    else:
++        # URDF가 없을 경우 기존 방식(패딩)으로 Fallback
++        safe_action[:min(len(action), env_action_dim)] = action[:min(len(action), env_action_dim)]
++    # ---------------------------------------------------------
++    
++    # 4. 액션 적용
++    obs, reward, terminated, truncated, info = env.step(safe_action)
++    
++    # 5. 실시간 화면 표시 및 데이터 오버레이
++    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
++    cv2.putText(frame_bgr, f"Latency: {latency*1000:.1f}ms", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
++    cv2.putText(frame_bgr, f"Speed: {fps:.2f} FPS", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
++    cv2.putText(frame_bgr, f"IK Mode: {'ON' if so101_chain else 'OFF'}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
++    
++    cv2.imshow("OpenVLA x SO-101 Real-time Benchmark", frame_bgr)
++    
++    if cv2.waitKey(1) & 0xFF == ord('q'):
++        break
++        
++    if terminated or truncated:
++        obs, info = env.reset()
++        current_joint_angles = np.zeros(len(so101_chain.links)) if so101_chain else np.zeros(7) # 리셋 시 조인트 초기화
++
++env.close()
++cv2.destroyAllWindows()
+\ No newline at end of file
+diff --git a/kkb_scripts/vla_sim.py b/kkb_scripts/vla_sim.py
+new file mode 100644
+index 0000000..c960b01
+--- /dev/null
++++ b/kkb_scripts/vla_sim.py
+@@ -0,0 +1,123 @@
++import torch
++import numpy as np
++from transformers import AutoModelForVision2Seq, AutoProcessor
++from PIL import Image
++from scipy.spatial.transform import Rotation as R
++import time
++
++# ---------------------------------------------------------
++# 1. 🚨 OpenVLA 모델 최우선 로드 (CUDA 컨텍스트 충돌 원천 차단)
++# Genesis(gs.init)가 PyTorch 기본 설정을 덮어쓰기 전에 반드시 먼저 로드해야 합니다.
++# ---------------------------------------------------------
++model_id = "openvla/openvla-7b"
++print(f"[1/2] 📡 {model_id} 로드 중...")
++processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
++vla = AutoModelForVision2Seq.from_pretrained(
++    model_id, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, trust_remote_code=True
++).to("cuda")
++
++# (이후에 genesis 임포트 및 초기화를 진행하여 안전성 확보)
++import genesis as gs
++
++# ---------------------------------------------------------
++# 2. Genesis 엔진 초기화 및 씬 구축
++# ---------------------------------------------------------
++print("\n[2/2] Genesis 물리 엔진 초기화 중...")
++gs.init(seed=0, precision="32", logging_level="info")
++
++scene = gs.Scene(
++    show_viewer=True,  
++    rigid_options=gs.options.RigidOptions(dt=0.01),
++)
++
++plane = scene.add_entity(gs.morphs.Plane())
++robot = scene.add_entity(
++    gs.morphs.URDF(
++        file="/home/aivlab/SO-ARM100/Simulation/SO101/so101_new_calib.urdf",
++        fixed=True,  
++    )
++)
++
++cube = scene.add_entity(
++    gs.morphs.Box(size=(0.04, 0.04, 0.04), pos=(0.4, 0.0, 0.02)),
++    surface=gs.surfaces.Default(color=(1.0, 0.0, 0.0))
++)
++
++cam = scene.add_camera(
++    res=(224, 224), 
++    pos=(-0.2, 0.0, 0.6), 
++    lookat=(0.4, 0.0, 0.0), 
++    fov=45
++)
++scene.build()
++
++ee_link = robot.get_link("gripper_link") 
++arm_joints = [0, 1, 2, 3, 4, 5]    
++gripper_joint = [6]                
++
++# ---------------------------------------------------------
++# 3. 제어 루프
++# ---------------------------------------------------------
++instruction = "pick up the red cube"
++ACTION_SCALING = 0.05 
++R_cam_to_base = np.eye(3) 
++
++def run_sim():
++    print("\n🚀 시뮬레이션 제어 루프 시작!")
++    for i in range(1000):
++        # 3.1 렌더링 및 텐서 안전 추출
++        render_output = cam.render(rgb=True)
++        rgb = render_output[0] if isinstance(render_output, tuple) else render_output
++        
++        if isinstance(rgb, torch.Tensor):
++            rgb = rgb.detach().cpu().numpy()
++        if rgb.dtype in [np.float32, np.float64]:
++            rgb = (rgb * 255).clip(0, 255).astype(np.uint8)
++            
++        image_pil = Image.fromarray(rgb).convert("RGB")
++        
++        # 3.2 VLA 추론
++        inputs = processor(instruction, image_pil).to("cuda", dtype=torch.bfloat16)
++        action = vla.predict_action(**inputs, unnorm_key="bridge_orig", do_sample=False)
++        
++        # 3.3 액션 타입 변환 (GPU Tensor -> CPU Numpy)
++        if isinstance(action, torch.Tensor):
++            action = action.detach().cpu().numpy()
++            
++        delta_pos_cam = action[:3].astype(np.float32) * ACTION_SCALING
++        delta_euler_local = action[3:6].astype(np.float32)
++        gripper_raw = float(action[6]) 
++        
++        # 3.4 현재 상태 로드 (GPU Tensor -> CPU Numpy)
++        current_pos = ee_link.get_pos().detach().cpu().numpy()
++        current_quat = ee_link.get_quat().detach().cpu().numpy()
++        current_rot = R.from_quat(current_quat).as_matrix()
++        
++        # 3.5 목표 포즈 연산
++        target_pos = current_pos + (R_cam_to_base @ delta_pos_cam)
++        delta_rot_mat = R.from_euler('xyz', delta_euler_local).as_matrix()
++        target_rot_mat = current_rot @ delta_rot_mat
++        target_quat = R.from_matrix(target_rot_mat).as_quat()
++        
++        # 3.6 IK 연산
++        q_target = robot.inverse_kinematics(
++            link = ee_link,
++            pos = target_pos,
++            quat = target_quat,
++        )
++        
++        # 3.7 명령 하달 (Tensor 유지)
++        robot.control_dofs_position(q_target[arm_joints], arm_joints)
++        
++        target_gripper = np.interp(gripper_raw, [-1, 1], [0.04, 0.0])
++        robot.control_dofs_position(np.array([target_gripper]), gripper_joint)
++        
++        # 3.8 물리 서브스텝
++        for _ in range(30):
++            scene.step()
++        
++        if i % 5 == 0:
++            print(f"Step {i:03d} | Pos Err: {np.linalg.norm(target_pos - current_pos):.4f} | Gripper: {target_gripper:.4f}")
++
++if __name__ == "__main__":
++    run_sim()
+\ No newline at end of file

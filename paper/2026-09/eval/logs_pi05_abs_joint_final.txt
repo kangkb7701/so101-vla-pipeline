@@ -1,0 +1,60 @@
+INFO 2026-09-28 07:34:06 _rollout.py:245 Building rollout context...
+INFO 2026-09-28 07:34:06 /context.py:330 Loading policy from '/home/aivlab/kkb_capstone/2026-09-paper/runs/pi05_abs_joint/checkpoints/013300/pretrained_model'...
+INFO 2026-09-28 07:34:55 ing_pi05.py:581 Enabled gradient checkpointing for PI05Pytorch model
+WARNING 2026-09-28 07:34:56 ng_pi05.py:1138 Vision embedding key might need handling: model.paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.bias
+WARNING 2026-09-28 07:34:56 ng_pi05.py:1138 Vision embedding key might need handling: model.paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.weight
+INFO 2026-09-28 07:34:57 /context.py:361 Policy loaded: type=pi05, device=cuda
+INFO 2026-09-28 07:34:57 /context.py:392 Connecting robot (fake_so101_replay)...
+INFO 2026-09-28 07:34:57 /context.py:395 Robot connected: so_follower
+INFO 2026-09-28 07:34:57 /context.py:400 Captured initial robot position (6 keys)
+INFO 2026-09-28 07:34:58 /context.py:575 Creating inference engine (type=sync)...
+INFO 2026-09-28 07:34:58 e/factory.py:99 Creating inference engine: sync
+INFO 2026-09-28 07:34:58 ence/sync.py:63 SyncInferenceEngine initialized (device=cuda, action_keys=6)
+INFO 2026-09-28 07:34:58 /context.py:597 Rollout context assembled successfully
+INFO 2026-09-28 07:34:58 l_rollout.py:40 Joint checkpoint: running unchanged
+INFO 2026-09-28 07:34:58 _rollout.py:249 Rollout strategy: base
+INFO 2026-09-28 07:34:58 _rollout.py:250 Robot: fake_so101_replay | FPS: 10 | Duration: 15.0s
+INFO 2026-09-28 07:34:58 gies/core.py:96 Starting inference engine...
+INFO 2026-09-28 07:34:58 ence/sync.py:79 Resetting sync inference state (policy + processors)
+INFO 2026-09-28 07:34:58 ence/sync.py:71 SyncInferenceEngine started (inline mode — no background thread)
+INFO 2026-09-28 07:34:58 ies/core.py:100 Inference engine started
+INFO 2026-09-28 07:34:58 gies/base.py:40 Base strategy ready
+INFO 2026-09-28 07:34:58 _rollout.py:263 Rollout setup complete, starting rollout...
+INFO 2026-09-28 07:34:58 gies/base.py:58 Base strategy control loop started
+WARNING 2026-09-28 07:35:00 le_timer.py:407 Control loop is running slower (5.6 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-28 07:35:01 le_timer.py:407 Control loop is running slower (5.5 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-28 07:35:03 le_timer.py:407 Control loop is running slower (5.4 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-28 07:35:05 le_timer.py:407 Control loop is running slower (5.5 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-28 07:35:06 le_timer.py:407 Control loop is running slower (5.4 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-28 07:35:08 le_timer.py:407 Control loop is running slower (5.7 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-28 07:35:09 le_timer.py:407 Control loop is running slower (5.4 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-28 07:35:11 le_timer.py:407 Control loop is running slower (5.6 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-28 07:35:13 le_timer.py:407 Control loop is running slower (5.4 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+INFO 2026-09-28 07:35:13 gies/base.py:65 Duration limit reached (15s)
+INFO 2026-09-28 07:35:13 gies/base.py:87 Base strategy control loop ended
+INFO 2026-09-28 07:35:13 le_timer.py:606 Cadence summary — whole run · target 10 Hz (100.0 ms budget per tick): 140 ticks, 139 judged
+  effective cadence: 9.31 Hz over 15.0 s measured
+  ticks over the 100.0 ms work budget: 9/139 (6.5%) — work mean 19.3 ms, worst 186.1 ms
+  loop-body steps (share of measured work):
+    observe      mean   4.41 ms · worst   6.42 ms ·  20.0% of work · 140 calls
+    process_obs  mean   0.01 ms · worst   0.03 ms ·   0.1% of work · 140 calls
+    infer        mean  17.49 ms · worst 390.28 ms ·  79.5% of work · 140 calls
+    send         mean   0.01 ms · worst   0.04 ms ·   0.1% of work · 140 calls
+    telemetry    mean   0.00 ms · worst   0.00 ms ·   0.0% of work · 140 calls
+    query        mean   0.00 ms · worst   0.02 ms ·   0.0% of work · 140 calls
+  pacing headroom: 85.4 ms slept per tick on average (max 94.3 ms) — near zero means the loop is saturated
+INFO 2026-09-28 07:35:13 ies/core.py:209 Stopping inference engine...
+INFO 2026-09-28 07:35:13 ence/sync.py:75 SyncInferenceEngine stopped
+INFO 2026-09-28 07:35:13 ies/core.py:214 Returning robot to initial position before shutdown...
+INFO 2026-09-28 07:35:16 ies/core.py:220 Disconnecting robot...
+INFO 2026-09-28 07:35:16 gies/base.py:96 Base strategy teardown complete
+INFO 2026-09-28 07:35:16 _rollout.py:272 Rollout finished
+The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+Loading model from: /home/aivlab/kkb_capstone/2026-09-paper/runs/pi05_abs_joint/checkpoints/013300/pretrained_model
+✓ Loaded state dict from model.safetensors
+All keys loaded successfully!
+RESULT ckpt=/home/aivlab/kkb_capstone/2026-09-paper/runs/pi05_abs_joint/checkpoints/013300/pretrained_model action_dim_policy=[6] steps_sent=140
+keys sent: ['elbow_flex.pos', 'gripper.pos', 'shoulder_lift.pos', 'shoulder_pan.pos', 'wrist_flex.pos', 'wrist_roll.pos']
+MAE vs recorded action (deg): {'shoulder_pan': 2.81, 'shoulder_lift': 5.98, 'elbow_flex': 3.66, 'wrist_flex': 2.42, 'wrist_roll': 3.27, 'gripper': 0.62}

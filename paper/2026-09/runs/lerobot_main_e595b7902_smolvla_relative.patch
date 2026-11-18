@@ -1,0 +1,211 @@
+diff --git a/src/lerobot/policies/smolvla/configuration_smolvla.py b/src/lerobot/policies/smolvla/configuration_smolvla.py
+index 04ea7185c..1f7c19ffc 100644
+--- a/src/lerobot/policies/smolvla/configuration_smolvla.py
++++ b/src/lerobot/policies/smolvla/configuration_smolvla.py
+@@ -56,6 +56,18 @@ class SmolVLAConfig(PreTrainedConfig):
+     # Gripper dimensions will remain in absolute values.
+     use_delta_joint_actions_aloha: bool = False
+ 
++    # Relative actions (LeRobot convention, same fields as pi0/pi0.5): action -= state, chunk-anchored.
++    use_relative_actions: bool = False
++    # Joint names to exclude from relative (kept absolute).
++    relative_exclude_joints: list[str] = field(default_factory=lambda: ["gripper"])
++    # Populated at runtime from dataset metadata by make_policy.
++    action_feature_names: list[str] | None = None
++    # Relative end-effector actions: action is [x, y, z, r1..r6, gripper] and the reference is
++    # FK(current joint state); see processor/relative_ee_action_processor.py.
++    use_relative_ee_actions: bool = False
++    ee_urdf_path: str | None = None
++    ee_target_frame: str = "gripper_frame_link"
++
+     # Tokenizer
+     tokenizer_max_length: int = 48
+ 
+@@ -110,6 +122,10 @@ class SmolVLAConfig(PreTrainedConfig):
+         super().__post_init__()
+ 
+         """Input validation (not exhaustive)."""
++        if self.use_relative_actions and self.use_relative_ee_actions:
++            raise ValueError("Use either `use_relative_actions` or `use_relative_ee_actions`, not both.")
++        if self.use_relative_ee_actions and self.ee_urdf_path is None:
++            raise ValueError("`use_relative_ee_actions` requires `ee_urdf_path`.")
+         if self.n_action_steps > self.chunk_size:
+             raise ValueError(
+                 f"The chunk size is the upper bound for the number of action steps per model invocation. Got "
+diff --git a/src/lerobot/policies/smolvla/processor_smolvla.py b/src/lerobot/policies/smolvla/processor_smolvla.py
+index e924780cd..d4159aafd 100644
+--- a/src/lerobot/policies/smolvla/processor_smolvla.py
++++ b/src/lerobot/policies/smolvla/processor_smolvla.py
+@@ -19,9 +19,12 @@ from typing import Any
+ import torch
+ 
+ from lerobot.processor import (
++    AbsoluteActionsProcessorStep,
+     NewLineTaskProcessorStep,
+     PolicyAction,
+     PolicyProcessorPipeline,
++    RelativeActionsProcessorStep,
++    RelativeEEActionsProcessorStep,
+     TokenizerProcessorStep,
+     make_default_policy_processor_steps,
+     make_policy_processor_pipelines,
+@@ -60,11 +63,29 @@ def make_smolvla_pre_post_processors(
+         A tuple containing the configured pre-processor and post-processor pipelines.
+     """
+ 
++    if config.use_relative_ee_actions:
++        relative_step = RelativeEEActionsProcessorStep(
++            enabled=True,
++            exclude_joints=config.relative_exclude_joints,
++            action_names=config.action_feature_names,
++            urdf_path=config.ee_urdf_path,
++            target_frame=config.ee_target_frame,
++        )
++    else:
++        relative_step = RelativeActionsProcessorStep(
++            enabled=config.use_relative_actions,
++            exclude_joints=config.relative_exclude_joints,
++            action_names=config.action_feature_names,
++        )
++    use_relative = config.use_relative_actions or config.use_relative_ee_actions
++
+     steps = make_default_policy_processor_steps(config, dataset_stats)
+ 
++    # Same order as pi0.5: raw -> relative -> normalize -> model -> unnormalize -> absolute
+     input_steps = [
+         steps.rename_observations,  # To mimic the same processor as pretrained one
+         steps.add_batch_dim,
++        relative_step,
+         NewLineTaskProcessorStep(),
+         TokenizerProcessorStep(
+             tokenizer_name=config.vlm_model_name,
+@@ -77,6 +98,7 @@ def make_smolvla_pre_post_processors(
+     ]
+     output_steps = [
+         steps.unnormalize,
++        AbsoluteActionsProcessorStep(enabled=use_relative, relative_step=relative_step),
+         steps.to_cpu,
+     ]
+     return make_policy_processor_pipelines(input_steps=input_steps, output_steps=output_steps)
+diff --git a/src/lerobot/processor/__init__.py b/src/lerobot/processor/__init__.py
+index 455c90d67..54fbc8c14 100644
+--- a/src/lerobot/processor/__init__.py
++++ b/src/lerobot/processor/__init__.py
+@@ -98,6 +98,7 @@ from .relative_action_processor import (
+     to_absolute_actions,
+     to_relative_actions,
+ )
++from .relative_ee_action_processor import RelativeEEActionsProcessorStep
+ from .rename_processor import RenameObservationsProcessorStep, rename_stats
+ from .render_messages_processor import RenderRuntimeMessagesStep, RenderTrainingMessagesStep
+ from .tokenizer_processor import ActionTokenizerProcessorStep, TokenizerProcessorStep
+diff --git a/src/lerobot/processor/relative_ee_action_processor.py b/src/lerobot/processor/relative_ee_action_processor.py
+new file mode 100644
+index 000000000..cd525e334
+--- /dev/null
++++ b/src/lerobot/processor/relative_ee_action_processor.py
+@@ -0,0 +1,104 @@
++#!/usr/bin/env python
++
++"""Relative end-effector actions for robots whose observation state stays in joint space.
++
++The action vector is an end-effector pose ``[x, y, z, r1..r6, gripper]`` where ``r1..r6`` are the
++first two columns of the rotation matrix (6D rotation). The reference pose is computed from the
++current joint state with forward kinematics and subtracted element-wise, following the LeRobot
++relative-action convention (``relative = action - reference``); masked dimensions (gripper) stay absolute.
++
++Subclassing ``RelativeActionsProcessorStep`` keeps the paired ``AbsoluteActionsProcessorStep``,
++checkpoint re-linking and chunk-anchor binding working unchanged: the cached reference is simply the
++FK pose instead of the raw state.
++"""
++
++from dataclasses import dataclass, field
++from typing import Any
++
++import numpy as np
++import torch
++
++from lerobot.lerobot_types import EnvTransition, TransitionKey
++from lerobot.utils.constants import OBS_STATE
++
++from .pipeline import ProcessorStepRegistry
++from .relative_action_processor import RelativeActionsProcessorStep, to_relative_actions
++
++SO101_ARM_JOINTS = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll"]
++
++
++def pose_to_ee_vector(transform: np.ndarray) -> np.ndarray:
++    """4x4 homogeneous transform -> [x, y, z, r1..r6] with r = first two rotation columns."""
++    return np.concatenate([transform[:3, 3], transform[:3, 0], transform[:3, 1]])
++
++
++def ee_vector_to_pose(vec: np.ndarray) -> np.ndarray:
++    """[x, y, z, r1..r6] -> 4x4 transform, re-orthonormalizing the 6D rotation (Gram-Schmidt)."""
++    a1, a2 = vec[3:6], vec[6:9]
++    b1 = a1 / np.linalg.norm(a1)
++    a2 = a2 - np.dot(b1, a2) * b1
++    b2 = a2 / np.linalg.norm(a2)
++    transform = np.eye(4)
++    transform[:3, 0], transform[:3, 1], transform[:3, 2] = b1, b2, np.cross(b1, b2)
++    transform[:3, 3] = vec[:3]
++    return transform
++
++
++def joints_to_ee_reference(kinematics, state: np.ndarray, num_arm_joints: int) -> np.ndarray:
++    """(N, state_dim) joint states in degrees -> (N, 10) [ee pose (9), gripper state]."""
++    out = np.empty((state.shape[0], 10), dtype=np.float32)
++    for i, row in enumerate(state):
++        out[i, :9] = pose_to_ee_vector(kinematics.forward_kinematics(row[:num_arm_joints].astype(np.float64)))
++        out[i, 9] = row[-1]
++    return out
++
++
++@ProcessorStepRegistry.register("relative_ee_actions_processor")
++@dataclass
++class RelativeEEActionsProcessorStep(RelativeActionsProcessorStep):
++    """Relative EE actions whose reference is FK(current joint state)."""
++
++    urdf_path: str | None = None
++    target_frame: str = "gripper_frame_link"
++    joint_names: list[str] = field(default_factory=lambda: list(SO101_ARM_JOINTS))
++    _kinematics: Any = field(default=None, init=False, repr=False)
++
++    def _reference(self, state: torch.Tensor) -> torch.Tensor:
++        if self._kinematics is None:
++            from lerobot.model.kinematics import RobotKinematics
++
++            self._kinematics = RobotKinematics(
++                urdf_path=self.urdf_path, target_frame_name=self.target_frame, joint_names=self.joint_names
++            )
++        flat = state.detach().to("cpu", torch.float32).reshape(-1, state.shape[-1]).numpy()
++        ref = joints_to_ee_reference(self._kinematics, flat, len(self.joint_names))
++        return torch.from_numpy(ref).reshape(*state.shape[:-1], 10).to(state.device)
++
++    def __call__(self, transition: EnvTransition) -> EnvTransition:
++        observation = transition.get(TransitionKey.OBSERVATION, {})
++        state = observation.get(OBS_STATE) if observation else None
++
++        if state is not None and not self._chunk_in_flight():
++            self._last_state = self._reference(state)
++
++        if not self.enabled:
++            return transition
++
++        new_transition = transition.copy()
++        action = new_transition.get(TransitionKey.ACTION)
++        if action is None or state is None:
++            return new_transition
++        if not isinstance(action, torch.Tensor):
++            raise ValueError(f"RelativeEEActionsProcessorStep expects a tensor action, got {type(action)}")
++
++        mask = self._build_mask(action.shape[-1])
++        new_transition[TransitionKey.ACTION] = to_relative_actions(action, self._last_state, mask)
++        return new_transition
++
++    def get_config(self) -> dict[str, Any]:
++        return {
++            **super().get_config(),
++            "urdf_path": self.urdf_path,
++            "target_frame": self.target_frame,
++            "joint_names": self.joint_names,
++        }

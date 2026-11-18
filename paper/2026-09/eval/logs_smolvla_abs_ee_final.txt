@@ -1,0 +1,62 @@
+INFO 2026-09-27 16:33:52 _rollout.py:245 Building rollout context...
+INFO 2026-09-27 16:33:52 /context.py:330 Loading policy from '/home/aivlab/kkb_capstone/2026-09-paper/runs/smolvla_abs_ee/checkpoints/012893/pretrained_model'...
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 5764.21it/s]
+INFO 2026-09-27 16:34:02 /context.py:361 Policy loaded: type=smolvla, device=cuda
+INFO 2026-09-27 16:34:02 /context.py:392 Connecting robot (fake_so101_replay)...
+INFO 2026-09-27 16:34:02 /context.py:395 Robot connected: so_follower
+INFO 2026-09-27 16:34:02 /context.py:400 Captured initial robot position (6 keys)
+INFO 2026-09-27 16:34:03 /context.py:575 Creating inference engine (type=sync)...
+INFO 2026-09-27 16:34:03 e/factory.py:99 Creating inference engine: sync
+INFO 2026-09-27 16:34:03 ence/sync.py:63 SyncInferenceEngine initialized (device=cuda, action_keys=6)
+INFO 2026-09-27 16:34:03 /context.py:597 Rollout context assembled successfully
+INFO 2026-09-27 16:34:03 l_rollout.py:38 EE checkpoint: IK installed (joint limits: urdf, log: logs/offline_test_smolvla_abs_ee_final.csv)
+INFO 2026-09-27 16:34:03 _rollout.py:249 Rollout strategy: base
+INFO 2026-09-27 16:34:03 _rollout.py:250 Robot: fake_so101_replay | FPS: 10 | Duration: 15.0s
+INFO 2026-09-27 16:34:03 gies/core.py:96 Starting inference engine...
+INFO 2026-09-27 16:34:03 ence/sync.py:79 Resetting sync inference state (policy + processors)
+INFO 2026-09-27 16:34:03 ence/sync.py:71 SyncInferenceEngine started (inline mode — no background thread)
+INFO 2026-09-27 16:34:03 ies/core.py:100 Inference engine started
+INFO 2026-09-27 16:34:03 gies/base.py:40 Base strategy ready
+INFO 2026-09-27 16:34:03 _rollout.py:263 Rollout setup complete, starting rollout...
+INFO 2026-09-27 16:34:03 gies/base.py:58 Base strategy control loop started
+WARNING: Robot has the following self collisions in neutral position:
+  -base_link_2 collides with shoulder_link_2
+  -shoulder_link_0 collides with upper_arm_link_1
+  -upper_arm_link_0 collides with lower_arm_link_0
+  -lower_arm_link_2 collides with wrist_link_1
+  -wrist_link_0 collides with gripper_link_1
+  -gripper_link_0 collides with moving_jaw_so101_v1_link_0
+WARNING 2026-09-27 16:34:06 le_timer.py:407 Control loop is running slower (4.6 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-27 16:34:08 le_timer.py:407 Control loop is running slower (5.8 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-27 16:34:10 le_timer.py:407 Control loop is running slower (4.9 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-27 16:34:11 le_timer.py:407 Control loop is running slower (5.0 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-27 16:34:13 le_timer.py:407 Control loop is running slower (5.0 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-27 16:34:14 le_timer.py:407 Control loop is running slower (4.9 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-27 16:34:16 le_timer.py:407 Control loop is running slower (4.8 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+WARNING 2026-09-27 16:34:18 le_timer.py:407 Control loop is running slower (4.8 Hz) than the target FPS (10 Hz). Robot control might be unstable. Common causes are: 1) Camera FPS not keeping up 2) Policy inference (action or text) taking too long 3) CPU starvation
+INFO 2026-09-27 16:34:18 gies/base.py:65 Duration limit reached (15s)
+INFO 2026-09-27 16:34:18 gies/base.py:87 Base strategy control loop ended
+INFO 2026-09-27 16:34:18 le_timer.py:606 Cadence summary — whole run · target 10 Hz (100.0 ms budget per tick): 121 ticks, 120 judged
+  effective cadence: 7.98 Hz over 15.2 s measured
+  ticks over the 100.0 ms work budget: 8/120 (6.7%) — work mean 38.5 ms, worst 217.0 ms
+  loop-body steps (share of measured work):
+    observe      mean  12.92 ms · worst  27.14 ms ·  22.5% of work · 121 calls
+    process_obs  mean   0.01 ms · worst   0.02 ms ·   0.0% of work · 121 calls
+    infer        mean  44.43 ms · worst 2331.82 ms ·  77.3% of work · 121 calls
+    send         mean   0.01 ms · worst   0.03 ms ·   0.0% of work · 121 calls
+    telemetry    mean   0.00 ms · worst   0.00 ms ·   0.0% of work · 121 calls
+    query        mean   0.01 ms · worst   0.01 ms ·   0.0% of work · 121 calls
+  pacing headroom: 67.8 ms slept per tick on average (max 83.3 ms) — near zero means the loop is saturated
+INFO 2026-09-27 16:34:18 ies/core.py:209 Stopping inference engine...
+INFO 2026-09-27 16:34:18 ence/sync.py:75 SyncInferenceEngine stopped
+INFO 2026-09-27 16:34:18 ies/core.py:214 Returning robot to initial position before shutdown...
+INFO 2026-09-27 16:34:21 ies/core.py:220 Disconnecting robot...
+INFO 2026-09-27 16:34:21 gies/base.py:96 Base strategy teardown complete
+INFO 2026-09-27 16:34:21 _rollout.py:272 Rollout finished
+Reducing the number of VLM layers to 16 ...
+Loading weights from local directory
+RESULT ckpt=/home/aivlab/kkb_capstone/2026-09-paper/runs/smolvla_abs_ee/checkpoints/012893/pretrained_model action_dim_policy=[10] steps_sent=121
+keys sent: ['elbow_flex.pos', 'gripper.pos', 'shoulder_lift.pos', 'shoulder_pan.pos', 'wrist_flex.pos', 'wrist_roll.pos']
+MAE vs recorded action (deg): {'shoulder_pan': 1.32, 'shoulder_lift': 4.21, 'elbow_flex': 6.21, 'wrist_flex': 3.47, 'wrist_roll': 1.47, 'gripper': 0.67}

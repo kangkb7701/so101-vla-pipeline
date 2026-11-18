@@ -1,0 +1,10 @@
+trial,position,orientation,distractor,color,episode_index,result,failure_type,time
+1,P1,H,none,blue,0,,,2026-09-28_22:18:38
+2,P1,H,none,yellow,1,,,2026-09-28_22:19:50
+3,P1,H,none,green,2,,,2026-09-28_22:20:55
+4,P3,H,none,blue,3,,,2026-09-28_22:21:51
+5,P3,H,none,yellow,4,,,2026-09-28_22:22:42
+6,P3,H,none,green,5,,,2026-09-28_22:23:42
+7,P4,H,none,blue,none,,,2026-09-28_22:24:59
+8,P4,H,none,yellow,6,,,2026-09-28_22:26:03
+9,P4,H,none,green,7,,,2026-09-28_22:26:53

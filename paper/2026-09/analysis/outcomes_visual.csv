@@ -1,0 +1,55 @@
+repr,session,ep,outcome,banana_final,arm_note
+abs_joint,eval,0,success_rim,green basket rim (leaning on edge),
+abs_joint,eval,1,fail_untouched,on mat (untouched),arm went to blue basket without banana
+abs_joint,eval,2,fail_untouched,on mat (untouched),arm at yellow basket without banana
+abs_joint,eval,3,success,yellow basket,
+abs_joint,eval,4,fail_untouched,on mat (untouched),arm at blue basket without banana
+abs_joint,eval,5,success,blue basket,
+abs_joint,eval,6,fail_untouched,on mat (untouched),arm at yellow/green without banana
+abs_joint,eval,7,success,blue basket,
+abs_joint,eval,8,success,blue basket,
+abs_joint,eval,9,success,yellow basket,
+abs_joint,eval,10,success,yellow basket,
+abs_joint,eval,11,success,yellow basket,
+abs_joint,eval,12,success_rim,green basket rim (standing on edge),
+abs_joint,eval,13,fail_untouched,on mat (untouched),arm raised near blue without banana
+abs_joint,eval,14,success,blue basket,
+abs_joint,eval,15,fail_untouched,on mat (untouched),arm raised near blue/yellow without banana
+abs_joint,eval,16,fail_untouched,on mat (untouched),arm raised without banana
+abs_joint,eval,17,fail_untouched,on mat (untouched),arm raised without banana
+abs_joint,eval,18,success,yellow basket,
+abs_joint,eval,19,success,blue basket,
+rel_joint,eval,0,fail_displaced,on mat (rotated/moved),arm at yellow basket
+rel_joint,eval,1,success,blue basket,
+rel_joint,eval,2,fail_stuck,on mat (untouched),arm stayed at rest; side camera shifted from here on
+rel_joint,eval,3,fail_stuck,on mat (untouched),arm stayed at rest
+rel_joint,eval,4,fail_displaced,on mat (rotated),arm at yellow basket
+rel_joint,eval,5,fail_stuck,on mat (untouched),arm stayed at rest
+rel_joint,eval,6,fail_stuck,on mat (untouched),arm stayed at rest (58 s)
+rel_joint,eval,7,fail_stuck,on mat (untouched),arm stayed at rest
+rel_joint,eval,8,success,yellow basket,59 s
+rel_joint,eval,9,success,green basket,
+rel_joint,eval,10,success,blue basket,
+rel_joint,eval,11,fail_stuck,on mat (untouched),arm stayed at rest
+rel_joint,eval,12,fail_untouched,on mat (untouched),arm at blue/yellow without banana
+rel_joint,eval,13,success,green basket,
+rel_joint,eval,14,fail_untouched,on mat (untouched),arm at yellow without banana
+rel_joint,eval,15,fail_displaced,on mat (rotated),timeout 60 s
+rel_joint,eval,16,success,blue basket,
+abs_ee,eval1,0,fail_untouched,on mat (untouched),arm went to blue basket without banana
+abs_ee,eval1,1,fail_untouched,on mat (untouched),arm at blue/yellow without banana
+abs_ee,eval1,2,fail_untouched,on mat (untouched),arm at yellow without banana
+abs_ee,eval1,3,fail_untouched,on mat (untouched),arm at blue without banana
+abs_ee,eval1,4,success,yellow basket,
+abs_ee,eval1,5,fail_untouched,on mat (untouched),arm at yellow/green without banana
+abs_ee,eval1,6,fail_untouched,on mat (untouched),side camera rotated to a different view
+abs_ee,eval1,7,fail_untouched,on mat (untouched),side camera rotated to a different view
+rel_ee,eval1,0,fail_untouched,on mat (untouched),arm went to blue basket without banana
+rel_ee,eval1,1,fail_untouched,on mat (untouched),arm at yellow without banana
+rel_ee,eval1,2,fail_untouched,on mat (untouched),arm at yellow/green without banana
+rel_ee,eval1,3,fail_untouched,on mat (untouched),arm at blue without banana
+rel_ee,eval1,4,fail_untouched,on mat (untouched),arm at yellow without banana
+rel_ee,eval1,5,success,green basket,
+rel_ee,eval1,6,fail_untouched,on mat (untouched),arm at blue without banana
+rel_ee,eval1,7,fail_untouched,on mat (untouched),arm at blue without banana
+rel_ee,eval1,8,fail_untouched,on mat (untouched),arm at green without banana

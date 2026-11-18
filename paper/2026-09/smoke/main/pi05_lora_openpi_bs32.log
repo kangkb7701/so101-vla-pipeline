@@ -1,0 +1,500 @@
+INFO 2026-09-27 06:12:04 ot_train.py:490 {'accelerator': {'activation_checkpointing': {'mode': <ActivationCheckpointingMode.NONE: 'none'>},
+                 'compile': {'backend': 'inductor',
+                             'enabled': False,
+                             'mode': None,
+                             'regional': True},
+                 'ddp': {'find_unused_parameters': True,
+                         'gradient_as_bucket_view': False,
+                         'static_graph': False},
+                 'fsdp': {'cpu_offload': False,
+                          'ignored_modules': None,
+                          'min_num_params': None,
+                          'reshard_after_forward': True,
+                          'wrap_modules': None},
+                 'grad_scaler': {'backoff_factor': 0.5,
+                                 'growth_factor': 2.0,
+                                 'growth_interval': 2000,
+                                 'init_scale': 65536.0},
+                 'gradient_accumulation': {'steps': 1},
+                 'mixed_precision': 'no'},
+ 'batch_size': 32,
+ 'checkpoint_format': <CheckpointFormat.SAFETENSORS: 'safetensors'>,
+ 'checkpoint_path': None,
+ 'cudnn_deterministic': False,
+ 'dataloader_multiprocessing_context': 'spawn',
+ 'dataset': {'depth_output_unit': 'mm',
+             'episodes': [0,
+                          1,
+                          2,
+                          3,
+                          4,
+                          5,
+                          6,
+                          7,
+                          8,
+                          9,
+                          10,
+                          11,
+                          12,
+                          13,
+                          14,
+                          15,
+                          16,
+                          17,
+                          18,
+                          19,
+                          20,
+                          21,
+                          22,
+                          23,
+                          24,
+                          25,
+                          26,
+                          27,
+                          28,
+                          29,
+                          30,
+                          31,
+                          32,
+                          33,
+                          34,
+                          35,
+                          36,
+                          37,
+                          38,
+                          39,
+                          40,
+                          41,
+                          42,
+                          43,
+                          44,
+                          45,
+                          46,
+                          47,
+                          48,
+                          49,
+                          50,
+                          51,
+                          52,
+                          53,
+                          54,
+                          55,
+                          56,
+                          57,
+                          58,
+                          59,
+                          60,
+                          61,
+                          62,
+                          63,
+                          64,
+                          65,
+                          66,
+                          67,
+                          68,
+                          69,
+                          70,
+                          71,
+                          72,
+                          73,
+                          74,
+                          75,
+                          76,
+                          77,
+                          78,
+                          79,
+                          80,
+                          81,
+                          82,
+                          83,
+                          84,
+                          85,
+                          86,
+                          87,
+                          88,
+                          89,
+                          90,
+                          91,
+                          92,
+                          93,
+                          94,
+                          95,
+                          96,
+                          97,
+                          98,
+                          99,
+                          100,
+                          101,
+                          102,
+                          103,
+                          104,
+                          105,
+                          106,
+                          107,
+                          108,
+                          109,
+                          110,
+                          111,
+                          112,
+                          113,
+                          114,
+                          115,
+                          116,
+                          117,
+                          118,
+                          119,
+                          120,
+                          121,
+                          122,
+                          123,
+                          124,
+                          125,
+                          126,
+                          127,
+                          128,
+                          129,
+                          130,
+                          131,
+                          132,
+                          133,
+                          134,
+                          135,
+                          136,
+                          137,
+                          138,
+                          139,
+                          140,
+                          141,
+                          142,
+                          143,
+                          144,
+                          145,
+                          146,
+                          147,
+                          148,
+                          149,
+                          150,
+                          151,
+                          152,
+                          153,
+                          154,
+                          155,
+                          156,
+                          157,
+                          158,
+                          159,
+                          160,
+                          161,
+                          162,
+                          163,
+                          164,
+                          165,
+                          166,
+                          167,
+                          168,
+                          169,
+                          170,
+                          171,
+                          172,
+                          173,
+                          174,
+                          175,
+                          176,
+                          177,
+                          178,
+                          179],
+             'eval_split': 0.0,
+             'exclude_episodes': None,
+             'image_transforms': {'enable': False,
+                                  'max_num_transforms': 3,
+                                  'random_order': False,
+                                  'tfs': {'affine': {'kwargs': {'degrees': [-5.0,
+                                                                            5.0],
+                                                                'translate': [0.05,
+                                                                              0.05]},
+                                                     'type': 'RandomAffine',
+                                                     'weight': 1.0},
+                                          'brightness': {'kwargs': {'brightness': [0.8,
+                                                                                   1.2]},
+                                                         'type': 'ColorJitter',
+                                                         'weight': 1.0},
+                                          'contrast': {'kwargs': {'contrast': [0.8,
+                                                                               1.2]},
+                                                       'type': 'ColorJitter',
+                                                       'weight': 1.0},
+                                          'hue': {'kwargs': {'hue': [-0.05,
+                                                                     0.05]},
+                                                  'type': 'ColorJitter',
+                                                  'weight': 1.0},
+                                          'saturation': {'kwargs': {'saturation': [0.5,
+                                                                                   1.5]},
+                                                         'type': 'ColorJitter',
+                                                         'weight': 1.0},
+                                          'sharpness': {'kwargs': {'sharpness': [0.5,
+                                                                                 1.5]},
+                                                        'type': 'SharpnessJitter',
+                                                        'weight': 1.0}}},
+             'repo_id': 'local/so101_pick_place_fruit',
+             'repo_type': 'dataset',
+             'return_uint8': False,
+             'revision': None,
+             'root': '/home/aivlab/kkb_capstone/data/lerobot/so101_pick_place_fruit',
+             'streaming': False,
+             'use_imagenet_stats': True,
+             'video_backend': 'torchcodec'},
+ 'ema': {'decay': None,
+         'enable': False,
+         'inv_gamma': 1.0,
+         'max_decay': 0.9999,
+         'min_decay': 0.0,
+         'power': 0.75,
+         'update_after_step': 0,
+         'use_for_eval': True},
+ 'env': None,
+ 'env_eval_freq': 20000,
+ 'eval': {'batch_size': 11,
+          'n_episodes': 50,
+          'recording': False,
+          'recording_private': False,
+          'recording_repo_id': None,
+          'use_async_envs': True},
+ 'eval_steps': 0,
+ 'job': {'detach': False,
+         'image': 'huggingface/lerobot-gpu:latest',
+         'tags': [],
+         'target': None,
+         'timeout': '2d'},
+ 'job_name': 'pi05_lora_openpi_bs32',
+ 'log_freq': 5,
+ 'max_eval_samples': 0,
+ 'num_workers': 4,
+ 'optimizer': {'betas': [0.9, 0.95],
+               'eps': 1e-08,
+               'grad_clip_norm': 1.0,
+               'lr': 2.5e-05,
+               'type': 'adamw',
+               'weight_decay': 0.01},
+ 'output_dir': '2026-09-paper/smoke/main/pi05_lora_openpi_bs32',
+ 'parallelism': {'cfg_parallel': 1,
+                 'context_parallel': {'ring_degree': 1, 'ulysses_degree': 1},
+                 'dp_replicate': 1,
+                 'dp_shard': 1},
+ 'peft': {'full_training_modules': None,
+          'init_type': None,
+          'lora_alpha': None,
+          'method_type': 'LORA',
+          'r': 16,
+          'target_modules': '(.*\\.(language_model|gemma_expert)\\..*\\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)|model\\.(state_proj|action_in_proj|action_out_proj|time_mlp_in|time_mlp_out))'},
+ 'persistent_workers': True,
+ 'policy': {'action_expert_variant': 'gemma_300m',
+            'action_feature_names': None,
+            'chunk_size': 15,
+            'compile_mode': 'max-autotune',
+            'compile_model': False,
+            'device': 'cuda',
+            'dtype': 'bfloat16',
+            'empty_cameras': 0,
+            'freeze_vision_encoder': False,
+            'gradient_checkpointing': True,
+            'image_resolution': [224, 224],
+            'input_features': {'observation.images.base_0_rgb': {'shape': [3,
+                                                                           224,
+                                                                           224],
+                                                                 'type': <FeatureType.VISUAL: 'VISUAL'>},
+                               'observation.images.left_wrist_0_rgb': {'shape': [3,
+                                                                                 224,
+                                                                                 224],
+                                                                       'type': <FeatureType.VISUAL: 'VISUAL'>},
+                               'observation.images.right_wrist_0_rgb': {'shape': [3,
+                                                                                  224,
+                                                                                  224],
+                                                                        'type': <FeatureType.VISUAL: 'VISUAL'>},
+                               'observation.state': {'shape': [32],
+                                                     'type': <FeatureType.STATE: 'STATE'>}},
+            'license': None,
+            'max_action_dim': 32,
+            'max_period': 4.0,
+            'max_state_dim': 32,
+            'memory_frames': 6,
+            'memory_stride': 30,
+            'memory_temporal_attention_every': 4,
+            'min_period': 0.004,
+            'n_action_steps': 15,
+            'n_obs_steps': 1,
+            'normalization_mapping': {'ACTION': <NormalizationMode.QUANTILES: 'QUANTILES'>,
+                                      'STATE': <NormalizationMode.QUANTILES: 'QUANTILES'>,
+                                      'VISUAL': <NormalizationMode.IDENTITY: 'IDENTITY'>},
+            'num_inference_steps': 10,
+            'optimizer_betas': [0.9, 0.95],
+            'optimizer_eps': 1e-08,
+            'optimizer_grad_clip_norm': 1.0,
+            'optimizer_lr': 2.5e-05,
+            'optimizer_weight_decay': 0.01,
+            'output_features': {'action': {'shape': [32],
+                                           'type': <FeatureType.ACTION: 'ACTION'>}},
+            'paligemma_variant': 'gemma_2b',
+            'pretrained_path': 'lerobot/pi05_base',
+            'pretrained_revision': None,
+            'private': None,
+            'push_to_hub': False,
+            'relative_exclude_joints': ['gripper'],
+            'repo_id': None,
+            'rtc_config': None,
+            'rtc_training_max_delay': 0,
+            'scheduler_decay_lr': 2.5e-06,
+            'scheduler_decay_steps': 30000,
+            'scheduler_warmup_steps': 1000,
+            'tags': None,
+            'text_tokenizer_name': 'google/paligemma-3b-pt-224',
+            'time_sampling_beta_alpha': 1.5,
+            'time_sampling_beta_beta': 1.0,
+            'time_sampling_offset': 0.001,
+            'time_sampling_scale': 0.999,
+            'tokenizer_max_length': 200,
+            'train_expert_only': False,
+            'type': 'pi05',
+            'use_amp': False,
+            'use_peft': False,
+            'use_proprioceptive_memory': False,
+            'use_relative_actions': False,
+            'use_visual_memory': False},
+ 'prefetch_factor': 4,
+ 'rename_map': {'observation.images.top': 'observation.images.base_0_rgb',
+                'observation.images.wrist': 'observation.images.left_wrist_0_rgb'},
+ 'resume': False,
+ 'reward_model': None,
+ 'sample_weighting': None,
+ 'save_checkpoint': False,
+ 'save_checkpoint_to_hub': False,
+ 'save_freq': 20000,
+ 'scheduler': {'decay_lr': 2.5e-06,
+               'num_decay_steps': 30000,
+               'num_warmup_steps': 1000,
+               'peak_lr': 2.5e-05,
+               'type': 'cosine_decay_with_warmup'},
+ 'seed': 1000,
+ 'steps': 30,
+ 'tolerance_s': 0.0001,
+ 'use_policy_training_preset': True,
+ 'wandb': {'add_tags': True,
+           'console': 'wrap',
+           'console_chunk_max_seconds': 0,
+           'console_multipart': False,
+           'disable_artifact': False,
+           'enable': False,
+           'entity': None,
+           'mode': None,
+           'notes': None,
+           'project': 'lerobot',
+           'resume': None,
+           'run_id': None}}
+INFO 2026-09-27 06:12:04 ot_train.py:497 Logs will be saved locally.
+INFO 2026-09-27 06:12:04 ot_train.py:512 Creating dataset
+INFO 2026-09-27 06:12:04 ot_train.py:542 Creating policy
+INFO 2026-09-27 06:12:53 ing_pi05.py:581 Enabled gradient checkpointing for PI05Pytorch model
+WARNING 2026-09-27 06:12:54 ng_pi05.py:1138 Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.bias
+WARNING 2026-09-27 06:12:54 ng_pi05.py:1138 Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.weight
+INFO 2026-09-27 06:12:56 ot_train.py:559 Using PEFT! Wrapping model.
+INFO 2026-09-27 06:12:56 etrained.py:416 Wrapped pi05 with PEFT (LoraConfig)
+INFO 2026-09-27 06:12:58 ot_train.py:632 Creating optimizer and scheduler
+INFO 2026-09-27 06:12:58 hedulers.py:156 Auto-scaling LR scheduler: num_training_steps (30) < num_decay_steps (30000). Scaling warmup: 1000 → 1, decay: 30000 → 30 (scale factor: 0.001)
+INFO 2026-09-27 06:12:58 ot_train.py:686 Output dir: 2026-09-paper/smoke/main/pi05_lora_openpi_bs32
+INFO 2026-09-27 06:12:58 ot_train.py:693 cfg.steps=30 (30)
+INFO 2026-09-27 06:12:58 ot_train.py:694 dataset.num_frames=34382 (34K)
+INFO 2026-09-27 06:12:58 ot_train.py:695 dataset.num_episodes=180
+INFO 2026-09-27 06:12:58 ot_train.py:696 Effective batch size: 32 x 1 dp workers x 1 grad accum = 32 (topology: dp_replicate=1, dp_shard=1)
+INFO 2026-09-27 06:12:58 ot_train.py:701 num_learnable_params=26641408 (27M)
+INFO 2026-09-27 06:12:58 ot_train.py:702 num_total_params=4170046224 (4B)
+The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+Remapped 812 state dict keys
+All keys loaded successfully!
+Training:   0%|          | 0/30 [00:00<?, ?step/s]INFO 2026-09-27 06:12:58 ot_train.py:811 Start offline training on a fixed dataset, with effective batch size: 32
+Traceback (most recent call last):
+  File "/home/aivlab/anaconda3/envs/lerobot_main/bin/lerobot-train", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/aivlab/lerobot-main/src/lerobot/scripts/lerobot_train.py", line 1067, in main
+    train()
+  File "/home/aivlab/lerobot-main/src/lerobot/configs/parser.py", line 438, in wrapper_inner
+    response = fn(cfg, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/lerobot-main/src/lerobot/scripts/lerobot_train.py", line 823, in train
+    train_tracker, _ = update_policy(
+                       ^^^^^^^^^^^^^^
+  File "/home/aivlab/lerobot-main/src/lerobot/scripts/lerobot_train.py", line 243, in update_policy
+    accelerator.backward(loss)
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/accelerate/accelerator.py", line 2861, in backward
+    loss.backward(**kwargs)
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/_tensor.py", line 631, in backward
+    torch.autograd.backward(
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/autograd/__init__.py", line 381, in backward
+    _engine_run_backward(
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/autograd/graph.py", line 869, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 1166, in unpack_hook
+    args = ctx.get_args(ctx.saved_tensors)
+                        ^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 1173, in unpack_hook
+    _run_fn_with_dynamo_disabled(frame.recompute_fn, *args)
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/_compile.py", line 54, in inner
+    return disable_fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1263, in _fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 1139, in _run_fn_with_dynamo_disabled
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 1607, in recompute_fn
+    fn(*args, **kwargs)
+  File "/home/aivlab/lerobot-main/src/lerobot/policies/pi05/modeling_pi05.py", line 772, in forward_func
+    (_, suffix_out), _ = self.paligemma_with_expert.forward(
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/lerobot-main/src/lerobot/policies/pi05/modeling_pi05.py", line 475, in forward
+    inputs_embeds = torch.utils.checkpoint.checkpoint(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/_compile.py", line 54, in inner
+    return disable_fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1263, in _fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 512, in checkpoint
+    ret = function(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/lerobot-main/src/lerobot/policies/pi05/modeling_pi05.py", line 235, in compute_layer_complete
+    out_emb = layer.mlp(out_emb)
+              ^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/transformers/models/gemma/modeling_gemma.py", line 96, in forward
+    down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+                                           ^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/peft/tuners/lora/layer.py", line 1102, in forward
+    result = result + lora_B(lora_A(dropout(x))) * scaling
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.89 GiB. GPU 0 has a total capacity of 23.55 GiB of which 780.88 MiB is free. Process 956664 has 828.00 MiB memory in use. Including non-PyTorch memory, this process has 21.35 GiB memory in use. Of the allocated memory 17.18 GiB is allocated by PyTorch, and 3.84 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+Exception ignored in: <generator object _checkpoint_without_reentrant_generator at 0x7e3710fff6a0>
+Traceback (most recent call last):
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 1623, in _checkpoint_without_reentrant_generator
+    with _checkpoint_hook(new_frame), forward_context:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/anaconda3/envs/lerobot_main/lib/python3.12/site-packages/torch/autograd/graph.py", line 344, in __exit__
+    torch._C._autograd._pop_saved_tensors_default_hooks()
+RuntimeError: is_initialized && !tls.stack.empty() INTERNAL ASSERT FAILED at "/pytorch/aten/src/ATen/SavedTensorHooks.cpp":69, please report a bug to PyTorch. 
+Training:   0%|          | 0/30 [00:38<?, ?step/s]

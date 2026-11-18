@@ -1,0 +1,73 @@
+diff --git a/src/lerobot/policies/groot/action_head/flow_matching_action_head.py b/src/lerobot/policies/groot/action_head/flow_matching_action_head.py
+index 4fda21ca5..fcf475280 100644
+--- a/src/lerobot/policies/groot/action_head/flow_matching_action_head.py
++++ b/src/lerobot/policies/groot/action_head/flow_matching_action_head.py
+@@ -204,7 +204,9 @@ class FlowmatchingActionHead(nn.Module):
+             self.position_embedding = nn.Embedding(config.max_seq_len, self.input_embedding_dim)
+             nn.init.normal_(self.position_embedding.weight, mean=0.0, std=0.02)
+ 
+-        self.beta_dist = Beta(config.noise_beta_alpha, config.noise_beta_beta)
++        # Keep scalars because Hugging Face may initialize this module on the meta device.
++        self.noise_beta_alpha = config.noise_beta_alpha
++        self.noise_beta_beta = config.noise_beta_beta
+         self.num_timestep_buckets = config.num_timestep_buckets
+         self.config = config
+         self.set_trainable_parameters(config.tune_projector, config.tune_diffusion_model)
+@@ -249,7 +251,9 @@ class FlowmatchingActionHead(nn.Module):
+                 self.model.eval()
+ 
+     def sample_time(self, batch_size, device, dtype):
+-        sample = self.beta_dist.sample([batch_size]).to(device, dtype=dtype)
++        alpha = torch.tensor(self.noise_beta_alpha, device=device, dtype=torch.float32)
++        beta = torch.tensor(self.noise_beta_beta, device=device, dtype=torch.float32)
++        sample = Beta(alpha, beta).sample([batch_size]).to(dtype=dtype)
+         return (self.config.noise_s - sample) / self.config.noise_s
+ 
+     def prepare_input(self, batch: dict) -> BatchFeature:
+diff --git a/src/lerobot/policies/groot/eagle2_hg_model/processing_eagle2_5_vl.py b/src/lerobot/policies/groot/eagle2_hg_model/processing_eagle2_5_vl.py
+index 27f9b3345..6c1c93b3a 100755
+--- a/src/lerobot/policies/groot/eagle2_hg_model/processing_eagle2_5_vl.py
++++ b/src/lerobot/policies/groot/eagle2_hg_model/processing_eagle2_5_vl.py
+@@ -220,6 +220,7 @@ class Eagle25VLProcessor(ProcessorMixin):
+                     image_inputs = self.image_processor(
+                         images=[image_list[idx_in_list]],
+                         videos=None,
++                        return_tensors="pt",
+                         **output_kwargs["images_kwargs"],
+                     )
+                     num_all_tiles = image_inputs["pixel_values"].shape[0]
+@@ -231,6 +232,7 @@ class Eagle25VLProcessor(ProcessorMixin):
+                     video_inputs = self.image_processor(
+                         images=None,
+                         videos=[video_list[idx_in_list]],
++                        return_tensors="pt",
+                         **output_kwargs["videos_kwargs"],
+                     )
+                     num_all_tiles = video_inputs["pixel_values"].shape[0]
+diff --git a/src/lerobot/policies/groot/groot_n1.py b/src/lerobot/policies/groot/groot_n1.py
+index fc753839a..3c9f3e333 100644
+--- a/src/lerobot/policies/groot/groot_n1.py
++++ b/src/lerobot/policies/groot/groot_n1.py
+@@ -90,9 +90,11 @@ class EagleBackbone(nn.Module):
+         else:
+             self.eagle_linear = torch.nn.Identity()
+ 
+-        # needed since we don't use these layers. Also saves compute
+-        while len(self.eagle_model.language_model.model.layers) > select_layer:
+-            self.eagle_model.language_model.model.layers.pop(-1)
++        # Keep all layers when select_layer is negative; negative indices mean "select from the end".
++        # For non-negative select_layer, drop later layers to save compute.
++        if select_layer >= 0:
++            while len(self.eagle_model.language_model.model.layers) > select_layer:
++                self.eagle_model.language_model.model.layers.pop(-1)
+ 
+         self.select_layer = select_layer
+         self.set_trainable_parameters(tune_llm, tune_visual)
+@@ -221,6 +223,7 @@ class GR00TN15(PreTrainedModel):
+         self.action_horizon = config.action_horizon
+         self.action_dim = config.action_dim
+         self.compute_dtype = config.compute_dtype
++        self.post_init()
+ 
+     def validate_inputs(self, inputs):
+         # NOTE -- this should be handled internally by the model

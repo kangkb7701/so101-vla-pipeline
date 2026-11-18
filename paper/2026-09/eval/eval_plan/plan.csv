@@ -1,0 +1,21 @@
+trial,position,x,y,in_distribution,orientation,distractor,distractor_slot,color,task
+1,P1,232,166,True,H,none,,green,pick the banana and place it in the green basket
+2,P1,232,166,True,V,none,,blue,pick the banana and place it in the blue basket
+3,P1,232,166,True,H,apple,S1,green,pick the banana and place it in the green basket
+4,P1,232,166,True,V,carrot,S1,yellow,pick the banana and place it in the yellow basket
+5,P2,354,222,True,H,none,,yellow,pick the banana and place it in the yellow basket
+6,P2,354,222,True,V,none,,blue,pick the banana and place it in the blue basket
+7,P2,354,222,True,V,apple,S1,green,pick the banana and place it in the green basket
+8,P2,354,222,True,H,carrot,S1,blue,pick the banana and place it in the blue basket
+9,P3,127,333,True,H,none,,blue,pick the banana and place it in the blue basket
+10,P3,127,333,True,V,none,,yellow,pick the banana and place it in the yellow basket
+11,P3,127,333,True,H,apple,S2,yellow,pick the banana and place it in the yellow basket
+12,P3,127,333,True,V,carrot,S2,yellow,pick the banana and place it in the yellow basket
+13,P4,315,366,True,H,none,,green,pick the banana and place it in the green basket
+14,P4,315,366,True,V,none,,blue,pick the banana and place it in the blue basket
+15,P4,315,366,True,V,apple,S2,blue,pick the banana and place it in the blue basket
+16,P4,315,366,True,H,carrot,S2,green,pick the banana and place it in the green basket
+17,P5,100,200,False,H,none,,green,pick the banana and place it in the green basket
+18,P5,100,200,False,V,apple,S1,yellow,pick the banana and place it in the yellow basket
+19,P6,420,300,False,V,none,,yellow,pick the banana and place it in the yellow basket
+20,P6,420,300,False,H,carrot,S1,blue,pick the banana and place it in the blue basket

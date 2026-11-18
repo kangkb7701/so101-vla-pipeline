@@ -1,0 +1,121 @@
+diff --git a/octo/utils/typing.py b/octo/utils/typing.py
+index 2f38ae7..ac3dc44 100644
+--- a/octo/utils/typing.py
++++ b/octo/utils/typing.py
+@@ -2,7 +2,7 @@ from typing import Any, Mapping, Sequence, Union
+ 
+ import jax
+ 
+-PRNGKey = jax.random.KeyArray
++PRNGKey = jax.Array
+ PyTree = Union[jax.typing.ArrayLike, Mapping[str, "PyTree"]]
+ Config = Union[Any, Mapping[str, "Config"]]
+ Params = Mapping[str, PyTree]
+diff --git a/octo_server.py b/octo_server.py
+new file mode 100644
+index 0000000..a89fd4b
+--- /dev/null
++++ b/octo_server.py
+@@ -0,0 +1,102 @@
++import os
++import sys
++
++# [Protocol C] JAX VRAM 독점 방지 및 TensorFlow GPU 비활성화
++os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
++os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
++
++import grpc
++import numpy as np
++import cv2
++import tensorflow as tf
++
++# TensorFlow GPU 차단
++tf.config.set_visible_devices([], 'GPU')
++
++import jax
++import jax.numpy as jnp
++from concurrent import futures
++from octo.model.octo_model import OctoModel
++
++# 서버 환경의 실제 폴더명(kkb_capstone) 경로 등록
++src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../kkb_capstone/src"))
++proto_path = os.path.join(src_path, "proto")
++sys.path.append(src_path)
++sys.path.append(proto_path)
++
++import vla_pb2 as vla_pb2
++import vla_pb2_grpc as vla_pb2_grpc
++
++class OctoService(vla_pb2_grpc.VLAServiceServicer):
++    def __init__(self, model_type="small"):
++        print(f"🤖 Loading Octo-{model_type} model (Official Example Flow)...")
++        checkpoint_path = f"hf://rail-berkeley/octo-{model_type}-1.5"
++        self.model = OctoModel.load_pretrained(checkpoint_path)
++        print("✅ Octo model loaded and ready.")
++
++    def Predict(self, request, context):
++        try:
++            # 1. 이미지 복호화 및 전처리 (공식 예제 방식)
++            images = {}
++            for img_data in request.images:
++                nparr = np.frombuffer(img_data.data, np.uint8)
++                img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
++                if img_bgr is not None:
++                    # BGR -> RGB 변환 및 256x256 리사이징
++                    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
++                    img_rgb = cv2.resize(img_rgb, (256, 256))
++                    images[img_data.camera_name] = img_rgb
++
++            if not images:
++                return vla_pb2.PredictResponse(actions=[0]*7, action_dim=7, chunk_size=0)
++
++            # 2. 관찰(Observation) 구성 (공식 예제 방식)
++            # 기본적으로 primary 이미지를 사용함
++            img = images.get("primary", list(images.values())[0])
++            
++            # [Batch, Window, H, W, 3] 차원 추가
++            img_input = img[np.newaxis, np.newaxis, ...]
++            
++            observation = {
++                "image_primary": img_input,
++                "timestep_pad_mask": np.array([[True]], dtype=bool)
++            }
++            
++            # 3. 태스크 생성 및 추론 (공식 예제 방식)
++            task = self.model.create_tasks(texts=[request.instruction])
++            
++            # unnormalization_statistics 경로 주의: ["bridge_dataset"]["action"]
++            actions = self.model.sample_actions(
++                observation, 
++                task, 
++                unnormalization_statistics=self.model.dataset_statistics["bridge_dataset"]["action"], 
++                rng=jax.random.PRNGKey(0)
++            )
++            
++            # 4. 응답 전송 (첫 번째 액션 스텝)
++            # actions shape: [batch=1, horizon=8, dim=7]
++            actions_np = np.array(actions)[0] 
++            flat_actions = actions_np[0].tolist() 
++            
++            return vla_pb2.PredictResponse(
++                actions=flat_actions,
++                action_dim=7,
++                chunk_size=1
++            )
++            
++        except Exception as e:
++            print(f"🚨 Inference Error: {e}")
++            import traceback
++            traceback.print_exc()
++            return vla_pb2.PredictResponse(actions=[0]*7, action_dim=7, chunk_size=0)
++
++def serve():
++    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
++    vla_pb2_grpc.add_VLAServiceServicer_to_server(OctoService(), server)
++    server.add_insecure_port('[::]:50051')
++    print("🚀 Octo VLA Server started on port 50051")
++    server.start()
++    server.wait_for_termination()
++
++if __name__ == '__main__':
++    serve()

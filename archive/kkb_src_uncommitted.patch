@@ -1,0 +1,320 @@
+diff --git a/controllers/ik_ctrl.py b/controllers/ik_ctrl.py
+index f1e27b6..e6f46c6 100644
+--- a/controllers/ik_ctrl.py
++++ b/controllers/ik_ctrl.py
+@@ -11,7 +11,8 @@ class IKController(BaseController):
+                  freeze_wrist_roll=False, wrist_roll_index=4, fixed_wrist_roll_rad=None,
+                  gripper_mode="delta", gripper_open_pos=40.0,
+                  gripper_close_min_pos=5.0, gripper_close_step_deg=2.0,
+-                 gripper_open_threshold=0.5, gripper_close_motion_scale=0.25):
++                 gripper_open_threshold=0.5, gripper_close_motion_scale=1.0,
++                 gripper_abs_max=66.0):
+         self.robot = robot
+         self.ee_link = ee_link
+         self.action_scaling = action_scaling
+@@ -27,8 +28,9 @@ class IKController(BaseController):
+         self.gripper_close_step_deg = float(gripper_close_step_deg)
+         self.gripper_open_threshold = float(gripper_open_threshold)
+         self.gripper_close_motion_scale = float(gripper_close_motion_scale)
+-        if self.gripper_mode not in {"delta", "binary"}:
+-            raise ValueError(f"Unsupported gripper_mode={gripper_mode!r}; use 'delta' or 'binary'.")
++        self.gripper_abs_max = float(gripper_abs_max)
++        if self.gripper_mode not in {"delta", "binary", "absolute"}:
++            raise ValueError(f"Unsupported gripper_mode={gripper_mode!r}; use 'delta', 'binary' or 'absolute'.")
+ 
+         # VP-SAM3 builder stores EE position deltas in the robot/base frame.
+         # Keep this as identity unless the dataset action convention is changed.
+@@ -183,11 +185,21 @@ class IKController(BaseController):
+         else:
+             q_target = q_target_np
+ 
+-        # 3. Gripper.
+-        # - delta: old checkpoints output a one-step gripper delta in degrees.
+-        # - binary: VP-style binary checkpoints output open intent (1=open, 0=close).
+-        #   Closing is applied gradually from the measured real position to avoid
+-        #   slamming the gripper to the hard limit.
++        gripper_target = self._gripper_target(gripper_signal, current_state)
++        return q_target, gripper_target
++
++    def _gripper_target(self, gripper_signal, current_state):
++        """
++        - delta: old checkpoints output a one-step gripper delta in degrees.
++        - binary: VP-style binary checkpoints output open intent (1=open, 0=close).
++          Closing is applied gradually from the measured real position to avoid
++          slamming the gripper to the hard limit.
++        - absolute: joint-space checkpoints output the gripper command in degrees.
++        """
++        if self.gripper_mode == "absolute":
++            gripper_target = float(np.clip(gripper_signal, 0.0, self.gripper_abs_max))
++            print(f"🔧 Absolute Gripper Target: {gripper_target:.2f} deg")
++            return gripper_target
+         current_gripper = self._current_gripper_pos(current_state)
+         if self.gripper_mode == "binary":
+             if gripper_signal >= self.gripper_open_threshold:
+@@ -212,5 +224,4 @@ class IKController(BaseController):
+                     f"🔧 Real Gripper Target: {gripper_target:.4f} "
+                     f"(real={current_gripper:.2f}, delta={gripper_signal:.2f} deg)"
+                 )
+-
+-        return q_target, gripper_target
++        return gripper_target
+diff --git a/hardware_server.py b/hardware_server.py
+index e2df3b6..5930d3e 100644
+--- a/hardware_server.py
++++ b/hardware_server.py
+@@ -51,18 +51,16 @@ def main():
+     print("\n" + "🔒"*25)
+     print("🔒 [관절별 안전 제어 범위 (Safety Limits)]")
+     
++    # so101_pick_place_fruit files 0-5 리더 명령의 p0.5~p99.5 ± 3도 (2026-09-08).
++    # 이전 값은 다른 세션 기준이라 wrist_flex 30%, gripper 24% 프레임을 잘라냈음.
++    # wrist_roll은 아래 FREEZE로 부팅값 고정이므로 범위가 실질적으로 무의미.
+     safe_limits = {
+-        'shoulder_pan':  (-73.0,  62.0),
+-        'shoulder_lift': (-103.0, 92.0),
+-        'elbow_flex':    (-95.0,  96.0),
+-        'wrist_flex':    (0,  94.0),
++        'shoulder_pan':  (-84.0,  58.0),
++        'shoulder_lift': (-108.0, 70.0),
++        'elbow_flex':    (-86.0,  100.0),
++        'wrist_flex':    (29.0,  105.0),
+         'wrist_roll':    (-165.0, -70.0),
+-        #  기존값
+-        # 'wrist_roll':    (-165.0, -4.0), 
+-        # gripper: 학습 데이터의 max=34.8 (mean peak=22.9)이라 96은 OOD 누적.
+-        # 학습 분포 max + 약간 여유로 40 상한. 추론 시 모델의 gripper 누적이
+-        # 학습 분포 안에 머무르도록 강제.
+-        'gripper':       (0.0,    40.0),
++        'gripper':       (0.0,    66.0),
+     }
+     if FREEZE_WRIST_ROLL:
+         lo, hi = safe_limits[WRIST_ROLL_NAME]
+diff --git a/main_real2.py b/main_real2.py
+index a44d272..4ef0d09 100644
+--- a/main_real2.py
++++ b/main_real2.py
+@@ -73,7 +73,12 @@ URDF_PATH = os.getenv("ROBOT_URDF", DEFAULT_URDF)
+ 
+ CONTROL_HZ = 10.0
+ CONTROL_PERIOD = 1.0 / CONTROL_HZ
+-ACTION_DIM = 7
++# ACTION_SPACE=joint: 6D [5 joint deltas (deg), binary gripper] executed without IK
++# (datasets/octo_so101_fruit_joint_dataset_builder.py). Default: 7D delta EE + IK.
++ACTION_SPACE = os.getenv("ACTION_SPACE", "ee").strip().lower()
++if ACTION_SPACE not in {"ee", "joint"}:
++    raise ValueError(f"Unsupported ACTION_SPACE={ACTION_SPACE!r}; use ee or joint")
++ACTION_DIM = 6 if ACTION_SPACE == "joint" else 7
+ SHOW_VIZ = os.getenv("SHOW_VIZ", "true").lower() in {"1", "true", "yes"}
+ MAX_STEPS = 2000
+ FIRST_CHUNK_TIMEOUT = 15.0
+@@ -159,12 +164,14 @@ ACTION_ENSEMBLE_WEIGHT_DIMS = int(os.getenv("ACTION_ENSEMBLE_WEIGHT_DIMS", "6"))
+ 
+ # Binary gripper checkpoints output open intent: 1=open, 0=close. Close is
+ # converted to a gradual absolute-position command in IKController.
+-GRIPPER_CONTROL_MODE = os.getenv("GRIPPER_CONTROL_MODE", "binary").lower()
++GRIPPER_CONTROL_MODE = os.getenv(
++    "GRIPPER_CONTROL_MODE", "absolute" if ACTION_SPACE == "joint" else "binary"
++).lower()
+ GRIPPER_BINARY_OPEN_POS = float(os.getenv("GRIPPER_BINARY_OPEN_POS", "40.0"))
+ GRIPPER_BINARY_CLOSE_MIN_POS = float(os.getenv("GRIPPER_BINARY_CLOSE_MIN_POS", "5.0"))
+ GRIPPER_BINARY_CLOSE_STEP_DEG = float(os.getenv("GRIPPER_BINARY_CLOSE_STEP_DEG", "2.0"))
+ GRIPPER_BINARY_OPEN_THRESHOLD = float(os.getenv("GRIPPER_BINARY_OPEN_THRESHOLD", "0.5"))
+-GRIPPER_BINARY_CLOSE_MOTION_SCALE = float(os.getenv("GRIPPER_BINARY_CLOSE_MOTION_SCALE", "0.25"))
++GRIPPER_BINARY_CLOSE_MOTION_SCALE = float(os.getenv("GRIPPER_BINARY_CLOSE_MOTION_SCALE", "1.0"))
+ 
+ APP_VIDEO_SERVER_ENABLED = os.getenv("APP_VIDEO_SERVER_ENABLED", "false").lower() in {"1", "true", "yes"}
+ APP_VIDEO_SERVER_HOST = os.getenv("APP_VIDEO_SERVER_HOST", "0.0.0.0")
+@@ -247,8 +254,7 @@ class ChunkBuffer:
+ 
+     def _stale_action(self) -> np.ndarray:
+         action = np.zeros(self.action_dim, dtype=np.float32)
+-        if self.action_dim > 6:
+-            action[6] = 1.0  # binary gripper: stale/no-op must keep gripper open, not close
++        action[-1] = 1.0  # binary gripper: stale/no-op must keep gripper open, not close
+         return action
+ 
+     def pop(self):
+@@ -749,13 +755,7 @@ def main():
+         urdf_path=URDF_PATH,
+     )
+ 
+-    controller = IKController(
+-        robot=env.shadow_robot,
+-        ee_link=env.ee_link,
+-        action_scaling=ACTION_SCALING,
+-        smoothing_alpha=JOINT_SMOOTHING_ALPHA,
+-        freeze_wrist_roll=False,
+-        wrist_roll_index=4,
++    gripper_kwargs = dict(
+         gripper_mode=GRIPPER_CONTROL_MODE,
+         gripper_open_pos=GRIPPER_BINARY_OPEN_POS,
+         gripper_close_min_pos=GRIPPER_BINARY_CLOSE_MIN_POS,
+@@ -763,6 +763,20 @@ def main():
+         gripper_open_threshold=GRIPPER_BINARY_OPEN_THRESHOLD,
+         gripper_close_motion_scale=GRIPPER_BINARY_CLOSE_MOTION_SCALE,
+     )
++    if ACTION_SPACE == "joint":
++        from controllers.joint_ctrl import JointDeltaController
++        controller = JointDeltaController(action_scaling=ACTION_SCALING, **gripper_kwargs)
++    else:
++        controller = IKController(
++            robot=env.shadow_robot,
++            ee_link=env.ee_link,
++            action_scaling=ACTION_SCALING,
++            smoothing_alpha=JOINT_SMOOTHING_ALPHA,
++            freeze_wrist_roll=False,
++            wrist_roll_index=4,
++            **gripper_kwargs,
++        )
++    print(f"Action space: {ACTION_SPACE} (dim={ACTION_DIM})")
+ 
+     print(f"📷 카메라 연결 중: top({CAM_TOP_INDEX}), wrist({CAM_WRIST_INDEX})")
+     cam_top, cam_wrist = open_dual_camera(
+diff --git a/octo_server.py b/octo_server.py
+index c812806..c3958f5 100644
+--- a/octo_server.py
++++ b/octo_server.py
+@@ -60,6 +60,9 @@ class OctoService(vla_pb2_grpc.VLAServiceServicer):
+ 
+         # 수정 없이 원본 통계값 그대로 사용
+         self.action_stats = self.model.dataset_statistics[self.dataset_name]["action"]
++        # 학습 파이프라인(normalize_action_and_proprio)은 proprio를 (x-mean)/std로
++        # 정규화해서 넣는다. 추론에서도 같은 통계로 정규화해야 한다.
++        self.proprio_stats = self.model.dataset_statistics[self.dataset_name].get("proprio")
+ 
+         logger.info(f"📊 Dataset statistics loaded for: '{self.dataset_name}'")
+         logger.info(f"📊 Observation keys: {list(self.model.example_batch['observation'].keys())}")
+@@ -236,6 +239,10 @@ class OctoService(vla_pb2_grpc.VLAServiceServicer):
+ 
+             if request.state and "proprio" in observation:
+                 state_np = np.array(request.state, dtype=np.float32)
++                if self.proprio_stats is not None:
++                    state_np = (state_np - np.asarray(self.proprio_stats["mean"], dtype=np.float32)) / (
++                        np.asarray(self.proprio_stats["std"], dtype=np.float32) + 1e-8
++                    )
+                 if self.prev_state is None:
+                     self.prev_state = state_np
+                 observation["proprio"] = np.stack([self.prev_state, state_np], axis=0)[np.newaxis, ...]
+diff --git a/scripts/eval/evaluate_octo_tfds_actions.py b/scripts/eval/evaluate_octo_tfds_actions.py
+index f913508..08897da 100644
+--- a/scripts/eval/evaluate_octo_tfds_actions.py
++++ b/scripts/eval/evaluate_octo_tfds_actions.py
+@@ -53,6 +53,15 @@ def parse_args() -> argparse.Namespace:
+         action="store_true",
+         help="Use action_normalization_mask=[True]*6+[False] for binary gripper datasets.",
+     )
++    parser.add_argument("--action_dim", type=int, default=ACTION_DIM, help="7 for delta-EE datasets, 6 for joint datasets.")
++    parser.add_argument(
++        "--num_samples",
++        type=int,
++        default=1,
++        help="Diffusion samples to average per observation. The head samples from the "
++        "learned action distribution, so on a noisy target a single sample is worse than "
++        "the conditional mean; averaging approximates it.",
++    )
+     parser.add_argument("--split", choices=["train", "val"], default="train")
+     parser.add_argument("--batch_size", type=int, default=4)
+     parser.add_argument("--num_batches", type=int, default=4)
+@@ -80,7 +89,7 @@ def make_dataset(args: argparse.Namespace):
+         language_key="language_instruction",
+     )
+     if args.binary_gripper:
+-        dataset_kwargs["action_normalization_mask"] = [True, True, True, True, True, True, False]
++        dataset_kwargs["action_normalization_mask"] = [True] * (args.action_dim - 1) + [False]
+     traj_transform_kwargs = dict(
+         window_size=WINDOW_SIZE,
+         action_horizon=args.action_horizon,
+@@ -111,11 +120,11 @@ def print_action_stats(name: str, arr: np.ndarray) -> None:
+ 
+ 
+ def gripper_event_mask(actions: np.ndarray, threshold: float = 1.0) -> np.ndarray:
+-    return np.abs(actions[..., 6]) >= threshold
++    return np.abs(actions[..., -1]) >= threshold
+ 
+ 
+ def binary_gripper_close_mask(actions: np.ndarray) -> np.ndarray:
+-    return actions[..., 6] <= 0.5
++    return actions[..., -1] <= 0.5
+ 
+ 
+ def main() -> None:
+@@ -127,6 +136,8 @@ def main() -> None:
+     model = OctoModel.load_pretrained(args.checkpoint_path, step=step)
+     dataset_key = list(model.dataset_statistics.keys())[0]
+     action_stats = model.dataset_statistics[dataset_key]["action"]
++    action_dim = int(np.asarray(action_stats["mean"]).shape[-1])
++    gripper_idx = action_dim - 1
+     print(f"Using dataset statistics key: {dataset_key}")
+ 
+     ds = make_dataset(args)
+@@ -141,14 +152,20 @@ def main() -> None:
+         batch = process_text(batch, model.text_processor)
+         batch.pop("dataset_name", None)
+ 
+-        rng, sample_rng = jax.random.split(rng)
+-        pred_norm = model.sample_actions(
+-            batch["observation"],
+-            batch["task"],
+-            rng=sample_rng,
+-        )
+-
+-        pred_norm_np = np.asarray(jax.device_get(pred_norm), dtype=np.float32)
++        samples = []
++        for _ in range(args.num_samples):
++            rng, sample_rng = jax.random.split(rng)
++            samples.append(
++                np.asarray(
++                    jax.device_get(
++                        model.sample_actions(
++                            batch["observation"], batch["task"], rng=sample_rng
++                        )
++                    ),
++                    dtype=np.float32,
++                )
++            )
++        pred_norm_np = np.mean(samples, axis=0)
+         gt_norm_np = np.asarray(jax.device_get(batch["action"]), dtype=np.float32)
+         if gt_norm_np.ndim == 4:
+             # Octo's windowed dataloader returns [B, window, horizon, D]. The
+@@ -177,9 +194,9 @@ def main() -> None:
+     print_action_stats("Pred-GT error", err)
+ 
+     print("\nMAE per dim over full horizon:")
+-    print(np.round(abs_err.reshape(-1, ACTION_DIM).mean(axis=0), 5).tolist())
++    print(np.round(abs_err.reshape(-1, action_dim).mean(axis=0), 5).tolist())
+     print("RMSE per dim over full horizon:")
+-    print(np.round(np.sqrt((err.reshape(-1, ACTION_DIM) ** 2).mean(axis=0)), 5).tolist())
++    print(np.round(np.sqrt((err.reshape(-1, action_dim) ** 2).mean(axis=0)), 5).tolist())
+ 
+     first_mae = abs_err[:, 0, :].mean(axis=0)
+     print("\nMAE per dim at horizon[0]:")
+@@ -210,11 +227,9 @@ def main() -> None:
+         pr0 = pred[i, 0]
+         print(
+             f"[{i:02d}] "
+-            f"gt_pos={np.round(gt0[:3], 4).tolist()} "
+-            f"pred_pos={np.round(pr0[:3], 4).tolist()} | "
+-            f"gt_rot={np.round(gt0[3:6], 4).tolist()} "
+-            f"pred_rot={np.round(pr0[3:6], 4).tolist()} | "
+-            f"gt_grip={gt0[6]:+.3f} pred_grip={pr0[6]:+.3f}"
++            f"gt={np.round(gt0[:gripper_idx], 4).tolist()} "
++            f"pred={np.round(pr0[:gripper_idx], 4).tolist()} | "
++            f"gt_grip={gt0[gripper_idx]:+.3f} pred_grip={pr0[gripper_idx]:+.3f}"
+         )
+ 
+     if args.save_npz:
+diff --git a/scripts/hardware_checks/camera_realtime.py b/scripts/hardware_checks/camera_realtime.py
+index 447fe71..052d025 100644
+--- a/scripts/hardware_checks/camera_realtime.py
++++ b/scripts/hardware_checks/camera_realtime.py
+@@ -7,8 +7,8 @@ from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
+ app = Flask(__name__)
+ 
+ # 카메라 설정 (학생의 인덱스 0과 2 적용)
+-config_top = OpenCVCameraConfig(index_or_path=0, fps=30, width=640, height=480)
+-config_wrist = OpenCVCameraConfig(index_or_path=2, fps=30, width=640, height=480)
++config_top = OpenCVCameraConfig(index_or_path=2, fps=30, width=640, height=480)
++config_wrist = OpenCVCameraConfig(index_or_path=0, fps=30, width=640, height=480)
+ 
+ top_cam = OpenCVCamera(config_top)
+ wrist_cam = OpenCVCamera(config_wrist)

@@ -1,0 +1,56 @@
+rel_ee 0 first-chunk rec-vs-replay joint RMSE 0.69, seed-vs-seed 0.68
+rel_ee 1 first-chunk rec-vs-replay joint RMSE 0.77, seed-vs-seed 0.79
+rel_ee 2 first-chunk rec-vs-replay joint RMSE 1.68, seed-vs-seed 1.74
+rel_ee 3 first-chunk rec-vs-replay joint RMSE 2.01, seed-vs-seed 2.00
+rel_ee 4 first-chunk rec-vs-replay joint RMSE 0.83, seed-vs-seed 0.95
+rel_ee 5 first-chunk rec-vs-replay joint RMSE 1.85, seed-vs-seed 2.08
+rel_ee 6 first-chunk rec-vs-replay joint RMSE 0.64, seed-vs-seed 0.71
+rel_ee 7 first-chunk rec-vs-replay joint RMSE 0.65, seed-vs-seed 0.64
+rel_ee 8 first-chunk rec-vs-replay joint RMSE 1.18, seed-vs-seed 1.63
+abs_joint 0 first-chunk rec-vs-replay joint RMSE 1.46, seed-vs-seed 1.58
+abs_joint 1 first-chunk rec-vs-replay joint RMSE 1.93, seed-vs-seed 1.57
+abs_joint 2 first-chunk rec-vs-replay joint RMSE 1.70, seed-vs-seed 1.54
+abs_joint 3 first-chunk rec-vs-replay joint RMSE 1.46, seed-vs-seed 1.47
+abs_joint 4 first-chunk rec-vs-replay joint RMSE 1.37, seed-vs-seed 1.53
+abs_joint 5 first-chunk rec-vs-replay joint RMSE 1.75, seed-vs-seed 1.64
+abs_joint 6 first-chunk rec-vs-replay joint RMSE 1.41, seed-vs-seed 1.39
+abs_joint 7 first-chunk rec-vs-replay joint RMSE 1.87, seed-vs-seed 1.48
+abs_joint 8 first-chunk rec-vs-replay joint RMSE 1.83, seed-vs-seed 1.58
+abs_joint 9 first-chunk rec-vs-replay joint RMSE 1.47, seed-vs-seed 1.41
+abs_joint 10 first-chunk rec-vs-replay joint RMSE 1.60, seed-vs-seed 1.40
+abs_joint 11 first-chunk rec-vs-replay joint RMSE 1.37, seed-vs-seed 1.26
+abs_joint 12 first-chunk rec-vs-replay joint RMSE 1.33, seed-vs-seed 1.34
+abs_joint 13 first-chunk rec-vs-replay joint RMSE 1.49, seed-vs-seed 1.33
+abs_joint 14 first-chunk rec-vs-replay joint RMSE 1.35, seed-vs-seed 1.29
+abs_joint 15 first-chunk rec-vs-replay joint RMSE 1.36, seed-vs-seed 1.30
+abs_joint 16 first-chunk rec-vs-replay joint RMSE 1.41, seed-vs-seed 1.34
+abs_joint 17 first-chunk rec-vs-replay joint RMSE 1.32, seed-vs-seed 1.32
+abs_joint 18 first-chunk rec-vs-replay joint RMSE 1.57, seed-vs-seed 1.43
+abs_joint 19 first-chunk rec-vs-replay joint RMSE 1.35, seed-vs-seed 1.36
+rel_joint 0 first-chunk rec-vs-replay joint RMSE 0.57, seed-vs-seed 0.58
+rel_joint 1 first-chunk rec-vs-replay joint RMSE 0.53, seed-vs-seed 0.56
+rel_joint 2 first-chunk rec-vs-replay joint RMSE 0.61, seed-vs-seed 0.65
+rel_joint 3 first-chunk rec-vs-replay joint RMSE 0.61, seed-vs-seed 0.64
+rel_joint 4 first-chunk rec-vs-replay joint RMSE 0.83, seed-vs-seed 0.70
+rel_joint 5 first-chunk rec-vs-replay joint RMSE 0.65, seed-vs-seed 0.73
+rel_joint 6 first-chunk rec-vs-replay joint RMSE 0.91, seed-vs-seed 1.02
+rel_joint 7 first-chunk rec-vs-replay joint RMSE 0.61, seed-vs-seed 0.71
+rel_joint 8 first-chunk rec-vs-replay joint RMSE 0.64, seed-vs-seed 0.69
+rel_joint 9 first-chunk rec-vs-replay joint RMSE 0.78, seed-vs-seed 0.63
+rel_joint 10 first-chunk rec-vs-replay joint RMSE 1.00, seed-vs-seed 0.70
+rel_joint 11 first-chunk rec-vs-replay joint RMSE 0.76, seed-vs-seed 0.86
+rel_joint 12 first-chunk rec-vs-replay joint RMSE 0.67, seed-vs-seed 0.64
+rel_joint 13 first-chunk rec-vs-replay joint RMSE 0.61, seed-vs-seed 0.53
+rel_joint 14 first-chunk rec-vs-replay joint RMSE 0.82, seed-vs-seed 0.66
+rel_joint 15 first-chunk rec-vs-replay joint RMSE 1.05, seed-vs-seed 0.83
+rel_joint 16 first-chunk rec-vs-replay joint RMSE 1.60, seed-vs-seed 2.28
+           rec_joint_rmse  seed_joint_rmse  rec_grip  seed_grip  rec_pos_cm  seed_pos_cm
+repr                                                                                    
+abs_joint            2.25             2.10      0.59       0.53        1.14         1.09
+rel_ee               1.83             1.81      0.85       0.85        0.64         0.63
+rel_joint            1.16             1.12      0.62       0.61        0.75         0.70
+           rec_joint_rmse  seed_joint_rmse  rec_pos_cm  seed_pos_cm
+repr                                                               
+abs_joint            1.46             1.40        0.66         0.74
+rel_ee               0.83             0.95        0.19         0.26
+rel_joint            0.67             0.69        0.46         0.46

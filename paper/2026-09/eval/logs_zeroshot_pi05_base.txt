@@ -1,0 +1,52 @@
+WARNING:lerobot.configs.policies:Device 'mps' is not available. Switching to 'cuda'.
+INFO 2026-09-28 11:55:19 _rollout.py:245 Building rollout context...
+INFO 2026-09-28 11:55:19 /context.py:330 Loading policy from '/home/aivlab/.cache/huggingface/hub/models--lerobot--pi05_base/snapshots/b211f3d44c36b6acfcf7ae94a64e8e96f75a64ba'...
+WARNING 2026-09-28 11:56:08 ng_pi05.py:1138 Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.bias
+WARNING 2026-09-28 11:56:08 ng_pi05.py:1138 Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.weight
+INFO 2026-09-28 11:56:16 /context.py:361 Policy loaded: type=pi05, device=cuda
+INFO 2026-09-28 11:56:16 /context.py:392 Connecting robot (fake_so101_replay)...
+INFO 2026-09-28 11:56:16 /context.py:395 Robot connected: so_follower
+INFO 2026-09-28 11:56:16 /context.py:400 Captured initial robot position (6 keys)
+INFO 2026-09-28 11:56:18 /context.py:575 Creating inference engine (type=sync)...
+INFO 2026-09-28 11:56:18 e/factory.py:99 Creating inference engine: sync
+INFO 2026-09-28 11:56:18 ence/sync.py:63 SyncInferenceEngine initialized (device=cuda, action_keys=6)
+INFO 2026-09-28 11:56:18 /context.py:597 Rollout context assembled successfully
+INFO 2026-09-28 11:56:18 l_rollout.py:40 Joint checkpoint: running unchanged
+INFO 2026-09-28 11:56:18 _rollout.py:249 Rollout strategy: base
+INFO 2026-09-28 11:56:18 _rollout.py:250 Robot: fake_so101_replay | FPS: 10 | Duration: 10.0s
+INFO 2026-09-28 11:56:18 gies/core.py:96 Starting inference engine...
+INFO 2026-09-28 11:56:18 ence/sync.py:79 Resetting sync inference state (policy + processors)
+INFO 2026-09-28 11:56:18 ence/sync.py:71 SyncInferenceEngine started (inline mode — no background thread)
+INFO 2026-09-28 11:56:18 ies/core.py:100 Inference engine started
+INFO 2026-09-28 11:56:18 gies/base.py:40 Base strategy ready
+INFO 2026-09-28 11:56:18 _rollout.py:263 Rollout setup complete, starting rollout...
+INFO 2026-09-28 11:56:18 gies/base.py:58 Base strategy control loop started
+INFO 2026-09-28 11:56:18 gies/base.py:87 Base strategy control loop ended
+INFO 2026-09-28 11:56:18 ies/core.py:209 Stopping inference engine...
+INFO 2026-09-28 11:56:18 ence/sync.py:75 SyncInferenceEngine stopped
+INFO 2026-09-28 11:56:18 ies/core.py:214 Returning robot to initial position before shutdown...
+INFO 2026-09-28 11:56:21 ies/core.py:220 Disconnecting robot...
+INFO 2026-09-28 11:56:21 gies/base.py:96 Base strategy teardown complete
+The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+Loading model from: /home/aivlab/.cache/huggingface/hub/models--lerobot--pi05_base/snapshots/b211f3d44c36b6acfcf7ae94a64e8e96f75a64ba
+✓ Loaded state dict from model.safetensors
+Remapped 812 state dict keys
+All keys loaded successfully!
+Traceback (most recent call last):
+  File "/home/aivlab/kkb_capstone/2026-09-paper/eval/test_rollout_offline.py", line 135, in <module>
+    lerobot_rollout.main()
+  File "/home/aivlab/lerobot-main/src/lerobot/scripts/lerobot_rollout.py", line 278, in main
+    rollout()
+  File "/home/aivlab/lerobot-main/src/lerobot/configs/parser.py", line 438, in wrapper_inner
+    response = fn(cfg, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/lerobot-main/src/lerobot/scripts/lerobot_rollout.py", line 264, in rollout
+    strategy.run(ctx)
+  File "/home/aivlab/lerobot-main/src/lerobot/rollout/strategies/base.py", line 76, in run
+    action_dict = send_next_action(obs_processed, obs, ctx, interpolator, timer)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aivlab/lerobot-main/src/lerobot/rollout/strategies/core.py", line 427, in send_next_action
+    raise ValueError(f"Interpolated tensor length ({len(interp)}) != action keys ({len(ordered_keys)})")
+ValueError: Interpolated tensor length (32) != action keys (6)

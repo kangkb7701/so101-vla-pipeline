@@ -1,0 +1,59 @@
+diff --git a/pyproject.toml b/pyproject.toml
+index f72cae0..880e122 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -44,9 +44,9 @@ dependencies = [
+     "sentencepiece==0.1.99",
+     "timm==0.9.10",
+     "tokenizers==0.19.1",
+-    "torch==2.2.0",
+-    "torchvision==0.17.0",
+-    "torchaudio==2.2.0",
++    "torch>=2.2.0",
++    "torchvision>=0.17.0",
++    "torchaudio>=2.2.0",
+     "transformers==4.40.1",
+     "wandb",
+     "tensorflow==2.15.0",
+diff --git a/vla_test.py b/vla_test.py
+new file mode 100644
+index 0000000..414e301
+--- /dev/null
++++ b/vla_test.py
+@@ -0,0 +1,35 @@
++import torch
++from transformers import AutoModelForVision2Seq, AutoProcessor
++from PIL import Image
++import os
++
++# ==========================================
++image_path = "/home/aivlab/Downloads/vla_test.jpeg" 
++# ==========================================
++
++model_id = "openvla/openvla-7b"
++print(f"📡 {model_id} 모델 로드 중... (첫 실행 시 15GB 다운로드)")
++
++# 1. 모델 및 프로세서 로드
++processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
++model = AutoModelForVision2Seq.from_pretrained(
++    model_id, 
++    torch_dtype=torch.bfloat16, 
++    low_cpu_mem_usage=True, 
++    trust_remote_code=True
++).to("cuda")
++
++# 2. 이미지 및 프롬프트 준비
++image = Image.open(image_path).convert("RGB")
++prompt = "In order to pick up the red fruit, the robot should"
++
++# 3. 추론 실행
++inputs = processor(prompt, image).to("cuda", dtype=torch.bfloat16)
++action = model.predict_action(**inputs, unnorm_key="bridge_orig", do_sample=False)
++
++# 4. 결과 출력
++print("\n" + "="*50)
++print(f"✅ 추론 성공! 3090 VRAM: {torch.cuda.memory_allocated() / 1024**3:.2f} GB 사용")
++print(f"🤖 예측된 7-DoF 액션 값:")
++print(action)
++print("="*50)
+\ No newline at end of file

@@ -1,0 +1,58 @@
+diff --git a/ex.py b/ex.py
+new file mode 100644
+index 0000000..146b94f
+--- /dev/null
++++ b/ex.py
+@@ -0,0 +1,52 @@
++import os
++import cv2
++import numpy as np
++from libero.libero import benchmark, get_libero_path
++from libero.libero.envs import OffScreenRenderEnv
++
++# 1. 벤치마크 및 태스크 설정
++benchmark_dict = benchmark.get_benchmark_dict()
++task_suite = benchmark_dict["libero_10"]()
++task_id = 0
++task = task_suite.get_task(task_id)
++task_bddl_file = os.path.join(get_libero_path("bddl_files"), task.problem_folder, task.bddl_file)
++
++# 2. 환경 설정 (Panda 로봇 사용)
++env_args = {
++    "bddl_file_name": task_bddl_file,
++    "robots": ["Panda"], 
++    "camera_heights": 512,
++    "camera_widths": 512
++}
++env = OffScreenRenderEnv(**env_args)
++env.seed(0)
++env.reset()
++
++# 3. 초기 상태 설정
++init_states = task_suite.get_task_init_states(task_id) 
++if len(init_states) > 0:
++    env.set_init_state(init_states[0])
++
++# ✅ 수정된 부분: action_space 대신 action_dim을 직접 사용합니다.
++# Panda 로봇은 보통 7차원(관절 6 + 그리퍼 1) 액션을 가집니다.
++dummy_action = np.zeros(env.env.action_dim) 
++
++print(f"[info] 로봇 액션 차원: {env.env.action_dim}")
++print("[info] 시뮬레이션을 시작합니다. OpenCV 창을 확인하세요...")
++
++for step in range(100):
++    obs, reward, done, info = env.step(dummy_action)
++    
++    # 이미지 전처리 및 출력
++    img_rgb = obs["agentview_image"][::-1] 
++    img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
++    
++    cv2.imshow("Standard Robot Test (Panda)", img_bgr)
++    
++    # 30ms 대기 (q를 누르면 종료)
++    if cv2.waitKey(30) & 0xFF == ord('q'):
++        break
++
++env.close()
++cv2.destroyAllWindows()
++print("[info] 테스트가 정상 종료되었습니다.")
